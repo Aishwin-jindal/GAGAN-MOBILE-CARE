@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { getRegisteredUsers, registerUser } from '../data/users';
 import { loginUserInDb, registerUserInDb, recordLoginInDb } from '../services/api';
 
@@ -6,28 +6,15 @@ export default function AuthGate({
   isOpen = true,
   onClose,
   onLogin,
-  promptMessage = '',
-  initialMode = 'customer'
+  promptMessage = ''
 }) {
-  // Only 2 modes: 'customer' (for both new & old users) and 'admin'
-  const [authMode, setAuthMode] = useState(initialMode === 'admin-login' ? 'admin' : 'customer');
-  
-  // Form states
+  // Single Universal Login Form State
   const [identifier, setIdentifier] = useState(''); // Email or Mobile Number
-  const [name, setName] = useState(''); // Customer Name
+  const [name, setName] = useState(''); // Optional name for first-time profile
   const [password, setPassword] = useState('');
-  const [adminKey, setAdminKey] = useState('');
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (initialMode === 'admin-login') {
-      setAuthMode('admin');
-    } else {
-      setAuthMode('customer');
-    }
-  }, [initialMode, isOpen]);
 
   if (!isOpen) return null;
 
@@ -35,106 +22,103 @@ export default function AuthGate({
     e.preventDefault();
     setError('');
 
-    if (authMode === 'customer') {
-      const cleanInput = identifier.trim().toLowerCase();
-      const cleanPassword = password.trim();
+    const cleanInput = identifier.trim().toLowerCase();
+    const cleanPassword = password.trim();
 
-      if (!cleanInput || !cleanPassword) {
-        setError('Please enter your Mobile Number or Email, and Password.');
-        return;
-      }
+    if (!cleanInput || !cleanPassword) {
+      setError('Please enter your Mobile Number or Email, and Password.');
+      return;
+    }
 
-      setLoading(true);
-      try {
-        // 1. Try to Login with PostgreSQL Backend
-        const dbRes = await loginUserInDb(cleanInput, cleanPassword);
-        if (dbRes && dbRes.id) {
-          onLogin(dbRes, rememberMe);
-          if (onClose) onClose();
-          setLoading(false);
-          return;
-        }
+    setLoading(true);
+    try {
+      // 1. Check if this is the Store Admin
+      const cleanPhoneDigits = cleanInput.replace(/[^0-9]/g, '');
+      const isAdminEmail = cleanInput === 'admin@gaganmobile.com' || cleanInput === 'admin';
+      const isAdminPhone = cleanPhoneDigits === '9872622624';
+      const isAdminPasskey = cleanPassword === 'gagan987';
 
-        // 2. Check local registered users
-        const registeredUsers = getRegisteredUsers();
-        const existingUser = registeredUsers.find(
-          (u) =>
-            u.email.toLowerCase() === cleanInput ||
-            (u.phone && u.phone.replace(/[^0-9]/g, '') === cleanInput.replace(/[^0-9]/g, ''))
-        );
-
-        if (existingUser) {
-          // Existing user found -> verify password
-          if (existingUser.password !== cleanPassword) {
-            setError('Incorrect password for this account. Please try again.');
-            setLoading(false);
-            return;
-          }
-          await recordLoginInDb(existingUser);
-          onLogin(existingUser, rememberMe);
-          if (onClose) onClose();
-          setLoading(false);
-          return;
-        }
-
-        // 3. User does NOT exist -> Automatically Register & Log In (Single Unified Flow)
-        const isEmail = cleanInput.includes('@');
-        const defaultName = name.trim() || (isEmail ? cleanInput.split('@')[0] : 'GMC Customer');
-        const payload = {
-          name: defaultName,
-          email: isEmail ? cleanInput : `${cleanInput.replace(/[^0-9]/g, '')}@gmc.local`,
-          phone: isEmail ? '+91 98765 43210' : cleanInput,
-          password: cleanPassword,
-          role: 'user',
-          avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(defaultName)}`
-        };
-
-        // Save into PostgreSQL
-        const dbNewUser = await registerUserInDb(payload);
-        if (dbNewUser && dbNewUser.id) {
-          try {
-            registerUser(payload);
-          } catch (e) {}
-          onLogin(dbNewUser, rememberMe);
-          if (onClose) onClose();
-          setLoading(false);
-          return;
-        }
-
-        // Local fallback register
-        const localNewUser = registerUser(payload);
-        await recordLoginInDb(localNewUser);
-        onLogin(localNewUser, rememberMe);
-        if (onClose) onClose();
-      } catch (err) {
-        setError(err.message || 'Login failed. Please check your credentials.');
-      } finally {
-        setLoading(false);
-      }
-    } else if (authMode === 'admin') {
-      const normalizedKey = adminKey.trim();
-      const cleanEmail = identifier.trim().toLowerCase();
-
-      if (!cleanEmail || !normalizedKey) {
-        setError('Please provide Admin Email and Security Passkey.');
-        return;
-      }
-
-      if (normalizedKey === 'gagan987') {
+      if ((isAdminEmail || isAdminPhone) && isAdminPasskey) {
         const adminUser = {
           id: 'usr_gagan_admin',
           name: 'Gagan (Store Admin)',
-          email: cleanEmail || 'admin@gaganmobile.com',
+          email: 'admin@gaganmobile.com',
           phone: '+91 98726-22624',
           role: 'admin',
-          avatar: '/gmc_logo.jpg'
+          avatar: '/gmc_logo.jpg',
+          isEmailVerified: true
         };
         await recordLoginInDb(adminUser);
         onLogin(adminUser, rememberMe);
         if (onClose) onClose();
-      } else {
-        setError('Invalid Admin Passkey. Access restricted.');
+        setLoading(false);
+        return;
       }
+
+      // 2. Try PostgreSQL Backend Login
+      const dbRes = await loginUserInDb(cleanInput, cleanPassword);
+      if (dbRes && dbRes.id) {
+        onLogin(dbRes, rememberMe);
+        if (onClose) onClose();
+        setLoading(false);
+        return;
+      }
+
+      // 3. Check Local Registered Users
+      const registeredUsers = getRegisteredUsers();
+      const existingUser = registeredUsers.find(
+        (u) =>
+          u.email.toLowerCase() === cleanInput ||
+          (u.phone && u.phone.replace(/[^0-9]/g, '') === cleanPhoneDigits)
+      );
+
+      if (existingUser) {
+        // Check password for existing account
+        if (existingUser.password !== cleanPassword) {
+          setError('Incorrect password for this registered account. Please try again.');
+          setLoading(false);
+          return;
+        }
+        await recordLoginInDb(existingUser);
+        onLogin(existingUser, rememberMe);
+        if (onClose) onClose();
+        setLoading(false);
+        return;
+      }
+
+      // 4. New Customer -> Automatically Create Account & Log In in 1-Click
+      const isEmail = cleanInput.includes('@');
+      const defaultName = name.trim() || (isEmail ? cleanInput.split('@')[0] : 'GMC Customer');
+      const payload = {
+        name: defaultName,
+        email: isEmail ? cleanInput : `${cleanPhoneDigits || Date.now()}@gmc.local`,
+        phone: isEmail ? '+91 98765 43210' : cleanInput,
+        password: cleanPassword,
+        role: 'user',
+        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(defaultName)}`
+      };
+
+      // Save into PostgreSQL
+      const dbNewUser = await registerUserInDb(payload);
+      if (dbNewUser && dbNewUser.id) {
+        try {
+          registerUser(payload);
+        } catch (e) {}
+        onLogin(dbNewUser, rememberMe);
+        if (onClose) onClose();
+        setLoading(false);
+        return;
+      }
+
+      // Local fallback register
+      const localNewUser = registerUser(payload);
+      await recordLoginInDb(localNewUser);
+      onLogin(localNewUser, rememberMe);
+      if (onClose) onClose();
+    } catch (err) {
+      setError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -192,35 +176,6 @@ export default function AuthGate({
           </div>
         )}
 
-        {/* Only 2 Tabs: Customer Login (New & Old) and Admin */}
-        <div className="flex rounded-xl bg-black/50 p-1 mb-4 border border-white/5">
-          <button
-            type="button"
-            onClick={() => { setAuthMode('customer'); setError(''); }}
-            className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-              authMode === 'customer'
-                ? 'bg-cyan-400 text-black shadow-[0_0_15px_rgba(0,240,255,0.35)]'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[16px]">person</span>
-            Customer Login
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => { setAuthMode('admin'); setError(''); }}
-            className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-              authMode === 'admin'
-                ? 'bg-amber-400 text-black shadow-[0_0_15px_rgba(251,191,36,0.35)]'
-                : 'text-gray-400 hover:text-amber-300'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[16px]">shield</span>
-            Store Admin
-          </button>
-        </div>
-
         {/* Form Error Banner */}
         {error && (
           <div className="mb-3.5 rounded-xl border border-red-500/40 bg-red-500/10 px-3.5 py-2 text-xs font-medium text-red-400 flex items-center gap-2">
@@ -229,112 +184,67 @@ export default function AuthGate({
           </div>
         )}
 
-        {/* Unified Form */}
-        <form onSubmit={handleSubmit} className="space-y-3">
-          {authMode === 'customer' ? (
-            <>
-              {/* Optional Name for order personalization */}
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-300 mb-1 flex items-center justify-between">
-                  <span>Full Name</span>
-                  <span className="text-[10px] text-gray-500 lowercase">Optional for new users</span>
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-2 text-gray-400 text-[18px]">
-                    badge
-                  </span>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Krish Jindal"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3.5 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
-                  />
-                </div>
-              </div>
+        {/* Single Universal Login Form */}
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          {/* Optional Name */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-300 mb-1 flex items-center justify-between">
+              <span>Full Name</span>
+              <span className="text-[10px] text-gray-500 lowercase">Optional for new accounts</span>
+            </label>
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[18px]">
+                badge
+              </span>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Krish Jindal"
+                className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
+              />
+            </div>
+          </div>
 
-              {/* Email or Mobile */}
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-300 mb-1">
-                  Mobile Number or Email
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-2 text-gray-400 text-[18px]">
-                    contact_phone
-                  </span>
-                  <input
-                    type="text"
-                    required
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="9876543210 or customer@gmail.com"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3.5 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
-                  />
-                </div>
-              </div>
+          {/* Email or Mobile Number */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-300 mb-1">
+              Mobile Number or Email
+            </label>
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[18px]">
+                contact_phone
+              </span>
+              <input
+                type="text"
+                required
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="Enter mobile number or email"
+                className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
+              />
+            </div>
+          </div>
 
-              {/* Password */}
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-300 mb-1">
-                  Password / PIN
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-2 text-gray-400 text-[18px]">
-                    lock
-                  </span>
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3.5 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
-                  />
-                </div>
-              </div>
-            </>
-          ) : (
-            /* Admin Mode */
-            <>
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-amber-300 mb-1">
-                  Admin Identifier
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-2 text-amber-400 text-[18px]">
-                    manage_accounts
-                  </span>
-                  <input
-                    type="text"
-                    required
-                    value={identifier || 'admin@gaganmobile.com'}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="admin@gaganmobile.com"
-                    className="w-full rounded-xl border border-amber-500/30 bg-white/5 pl-9 pr-3.5 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-amber-300 mb-1">
-                  Admin Security Passkey
-                </label>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-3 top-2 text-amber-400 text-[18px]">
-                    key
-                  </span>
-                  <input
-                    type="password"
-                    required
-                    value={adminKey}
-                    onChange={(e) => setAdminKey(e.target.value)}
-                    placeholder="Enter passkey (e.g. gagan987)"
-                    className="w-full rounded-xl border border-amber-500/30 bg-white/5 pl-9 pr-3.5 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-all"
-                  />
-                </div>
-              </div>
-            </>
-          )}
+          {/* Password */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-300 mb-1">
+              Password
+            </label>
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[18px]">
+                lock
+              </span>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
+              />
+            </div>
+          </div>
 
           {/* Remember session checkbox */}
           <div className="flex items-center justify-between pt-0.5">
@@ -353,18 +263,12 @@ export default function AuthGate({
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-2.5 sm:py-3 px-4 rounded-xl font-bold text-xs sm:text-sm tracking-wide transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-60 mt-2 ${
-              authMode === 'admin'
-                ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-black hover:shadow-[0_0_25px_rgba(251,191,36,0.4)]'
-                : 'bg-gradient-to-r from-cyan-400 to-blue-500 text-black hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]'
-            }`}
+            className="w-full py-2.5 sm:py-3 px-4 rounded-xl font-bold text-xs sm:text-sm tracking-wide transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-60 mt-2 bg-gradient-to-r from-cyan-400 to-blue-500 text-black hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]"
           >
             <span className="material-symbols-outlined text-[17px] sm:text-[18px]">
-              {authMode === 'admin' ? 'security' : 'login'}
+              login
             </span>
-            {loading ? 'Please wait...' : (
-              authMode === 'admin' ? 'Open Admin Control Center' : 'Sign In / Continue'
-            )}
+            {loading ? 'Please wait...' : 'Sign In & Continue'}
           </button>
         </form>
 
