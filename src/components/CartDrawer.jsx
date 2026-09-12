@@ -1,0 +1,347 @@
+import React, { useState } from 'react';
+import { X, Trash2, Plus, Minus, CheckCircle, ArrowRight, Tag, Check, FileText } from 'lucide-react';
+import { STORE_OFFERS } from '../data/offers';
+
+export default function CartDrawer({
+  isOpen,
+  onClose,
+  cartItems,
+  onUpdateQuantity,
+  onRemoveItem,
+  tradeInDiscount,
+  tradeInDevice,
+  onClearCart,
+  onPlaceOrder,
+  onOpenOrders,
+  appliedOffer,
+  onApplyOffer,
+  onViewInvoice
+}) {
+  const [orderPlaced, setOrderPlaced] = useState(false);
+  const [placedOrderId, setPlacedOrderId] = useState('');
+  const [placedOrderObj, setPlacedOrderObj] = useState(null);
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [couponInput, setCouponInput] = useState('');
+  const [couponError, setCouponError] = useState('');
+
+  if (!isOpen) return null;
+
+  const rawSubtotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  
+  // Calculate discounts
+  const offerDiscount = appliedOffer ? appliedOffer.discount : 0;
+  const totalDiscount = (tradeInDiscount || 0) + offerDiscount;
+  const netTotal = Math.max(0, rawSubtotal - totalDiscount);
+
+  const handleApplyCoupon = (codeToApply) => {
+    const code = (codeToApply || couponInput).trim().toUpperCase();
+    if (!code) return;
+
+    const matched = STORE_OFFERS.find((o) => o.code.toUpperCase() === code);
+    if (matched) {
+      if (onApplyOffer) onApplyOffer(matched);
+      setCouponError('');
+      setCouponInput('');
+    } else {
+      setCouponError('Invalid coupon code. Try GMCFESTIVE or FIRSTGMC.');
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    if (onApplyOffer) onApplyOffer(null);
+  };
+
+  const handleCheckoutSubmit = (e) => {
+    e.preventDefault();
+    const orderId = `GMC-${Math.floor(1000 + Math.random() * 9000)}`;
+    setPlacedOrderId(orderId);
+
+    const newOrder = {
+      id: orderId,
+      date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      status: 'Confirmed',
+      statusStep: 1,
+      customerName: customerName || 'Valued Customer',
+      customerPhone: customerPhone,
+      deliveryAddress: 'Store Pickup / Priority Delivery',
+      paymentMethod: 'Pay on Store Counter / COD',
+      trackingNumber: `GMC-EXP-${Math.floor(100000 + Math.random() * 900000)}`,
+      discount: totalDiscount,
+      appliedOfferName: appliedOffer ? appliedOffer.title : null,
+      tradeInDevice: tradeInDevice,
+      total: netTotal,
+      items: [...cartItems]
+    };
+
+    setPlacedOrderObj(newOrder);
+    if (onPlaceOrder) {
+      onPlaceOrder(newOrder);
+    }
+
+    setOrderPlaced(true);
+  };
+
+  const handleReset = () => {
+    setOrderPlaced(false);
+    setPlacedOrderObj(null);
+    onClearCart();
+    onClose();
+  };
+
+  const handleViewOrders = () => {
+    handleReset();
+    if (onOpenOrders) onOpenOrders();
+  };
+
+  const handleDownloadReceipt = () => {
+    if (onViewInvoice && placedOrderObj) {
+      onViewInvoice(placedOrderObj);
+    }
+  };
+
+  return (
+    <div className="cart-drawer-overlay" onClick={onClose}>
+      <div className="cart-drawer" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="cart-header">
+          <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff' }}>
+            Shopping Cart ({cartItems.reduce((acc, item) => acc + item.quantity, 0)})
+          </h2>
+          <button className="modal-close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {orderPlaced ? (
+          <div style={{ padding: '2rem 1rem', textAlign: 'center', my: 'auto' }}>
+            <div style={{ color: 'var(--accent-cyan)', marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}>
+              <CheckCircle size={64} />
+            </div>
+            <h3 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>
+              Order Placed Successfully!
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+              Thank you, <strong>{customerName || 'Valued Customer'}</strong>! Your order has been added to your previous orders list. Order ID: <strong style={{ color: 'var(--accent-cyan)' }}>#{placedOrderId}</strong>.
+            </p>
+            <div style={{ background: '#131b2b', padding: '1.25rem', borderRadius: 'var(--radius-md)', textAlign: 'left', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+              <div style={{ color: '#fff', fontWeight: 700, marginBottom: '0.5rem' }}>Gagan Mobile Care Store Pickup & Delivery:</div>
+              <div>📍 Store Address: Main Market, Gagan Mobile Care Hub</div>
+              <div>📞 Helpline / WhatsApp: +91 98765 43210</div>
+              <div>⏱️ Status: Confirmed & Saved to My Orders</div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <button
+                className="btn-primary"
+                style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                onClick={handleDownloadReceipt}
+              >
+                <FileText size={16} /> Download Tax Invoice / Bill
+              </button>
+              <button className="btn-secondary" style={{ width: '100%' }} onClick={handleViewOrders}>
+                View in My Orders
+              </button>
+              <button
+                style={{ background: 'transparent', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0.25rem' }}
+                onClick={handleReset}
+              >
+                Done & Return to Store
+              </button>
+            </div>
+          </div>
+        ) : cartItems.length === 0 ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)', padding: '2rem 1rem', textAlign: 'center' }}>
+            <p style={{ marginBottom: '1rem', color: '#fff', fontSize: '1rem' }}>Your shopping cart is currently empty.</p>
+            {appliedOffer && (
+              <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 'var(--radius-md)', padding: '0.85rem', marginBottom: '1.5rem', maxWidth: '320px' }}>
+                <div style={{ color: '#34d399', fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.25rem' }}>
+                  🏷️ Offer Active: {appliedOffer.code}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  ₹{appliedOffer.discount.toLocaleString('en-IN')} discount will be automatically applied when you add any item!
+                </div>
+              </div>
+            )}
+            <button className="btn-secondary" onClick={onClose}>Browse Catalog & Add Items</button>
+          </div>
+        ) : (
+          <>
+            {/* List of items */}
+            <div className="cart-items-list">
+              {cartItems.map((item) => (
+                <div key={item.id} className="cart-item">
+                  <div className="cart-item-img">
+                    <img src={item.image} alt={item.name} />
+                  </div>
+                  <div className="cart-item-details">
+                    <div className="cart-item-title">{item.name}</div>
+                    <div className="cart-item-price">
+                      ₹{item.price.toLocaleString('en-IN')}
+                    </div>
+                    {/* Quantity controls */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.4rem' }}>
+                      <button
+                        style={{ background: '#172033', color: '#fff', width: 24, height: 24, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{item.quantity}</span>
+                      <button
+                        style={{ background: '#172033', color: '#fff', width: 24, height: 24, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    style={{ background: 'transparent', color: 'var(--text-dim)' }}
+                    onClick={() => onRemoveItem(item.id)}
+                    title="Remove item"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Checkout Breakdown Footer */}
+            <div className="cart-footer">
+              {/* Promo Code / Store Offer Input */}
+              <div style={{ marginBottom: '1rem', background: '#0e1726', padding: '0.8rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                {appliedOffer ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'between', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                      <span style={{ color: '#10b981', display: 'flex' }}><Check size={16} /></span>
+                      <div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10b981' }}>
+                          Offer Applied: {appliedOffer.code}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          {appliedOffer.title} (-₹{appliedOffer.discount.toLocaleString('en-IN')})
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      style={{ background: 'transparent', color: 'var(--text-dim)', fontSize: '0.75rem', textDecoration: 'underline' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.4rem' }}>
+                      <div style={{ position: 'relative', flex: 1 }}>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Enter Promo Code"
+                          value={couponInput}
+                          onChange={(e) => {
+                            setCouponInput(e.target.value);
+                            setCouponError('');
+                          }}
+                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', textTransform: 'uppercase' }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyCoupon()}
+                        className="btn-secondary"
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', fontWeight: 700 }}
+                      >
+                        Apply
+                      </button>
+                    </div>
+
+                    {couponError && (
+                      <div style={{ fontSize: '0.7rem', color: '#f87171', marginBottom: '0.3rem' }}>
+                        {couponError}
+                      </div>
+                    )}
+
+                    {/* Quick Suggestions */}
+                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>Popular:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyCoupon('GMCFESTIVE')}
+                        style={{ background: 'rgba(0,240,255,0.1)', color: 'var(--accent-cyan)', border: '1px dashed var(--accent-cyan)', borderRadius: 4, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 700 }}
+                      >
+                        GMCFESTIVE (-₹3k)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyCoupon('FIRSTGMC')}
+                        style={{ background: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px dashed #34d399', borderRadius: 4, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 700 }}
+                      >
+                        FIRSTGMC (-₹1.5k)
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Breakdown Rows */}
+              <div className="cart-summary-row">
+                <span>Subtotal:</span>
+                <span>₹{rawSubtotal.toLocaleString('en-IN')}</span>
+              </div>
+
+              {appliedOffer && (
+                <div className="cart-summary-row" style={{ color: '#10b981' }}>
+                  <span>Store Offer ({appliedOffer.code}):</span>
+                  <span>- ₹{appliedOffer.discount.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+
+              {tradeInDiscount > 0 && (
+                <div className="cart-summary-row" style={{ color: 'var(--accent-cyan)' }}>
+                  <span>Trade-in Credit ({tradeInDevice}):</span>
+                  <span>- ₹{tradeInDiscount.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+
+              <div className="cart-summary-row" style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '0.5rem' }}>
+                <span className="cart-summary-total">Total Amount:</span>
+                <span className="cart-summary-total" style={{ color: 'var(--accent-cyan)' }}>
+                  ₹{netTotal.toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              {/* Quick Checkout Form */}
+              <form onSubmit={handleCheckoutSubmit} style={{ marginTop: '0.5rem' }}>
+                <div className="form-group" style={{ marginBottom: '0.5rem' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Your Name"
+                    required
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                  <input
+                    type="tel"
+                    className="form-input"
+                    placeholder="Mobile Phone Number"
+                    required
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                  />
+                </div>
+                <button type="submit" className="btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  Confirm Order & Reserve <ArrowRight size={16} style={{ marginLeft: 6 }} />
+                </button>
+              </form>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
