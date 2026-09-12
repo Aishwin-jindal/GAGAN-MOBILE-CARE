@@ -1,6 +1,8 @@
 // GAGAN MOBILE CARE - Unified Backend API & PostgreSQL Client
 
-const API_BASE = 'http://localhost:5050/api';
+const API_BASE = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api`
+  : 'http://localhost:5050/api';
 
 /**
  * Generic Fetcher with Timeout & Error Handling
