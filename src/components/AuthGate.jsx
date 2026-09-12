@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getRegisteredUsers, registerUser } from '../data/users';
 import { loginUserInDb, registerUserInDb, recordLoginInDb } from '../services/api';
 
-export default function AuthGate({ onLogin }) {
-  const [authMode, setAuthMode] = useState('user-login'); // 'user-login', 'user-signup', 'admin-login'
+export default function AuthGate({
+  isOpen = true,
+  onClose,
+  onLogin,
+  promptMessage = '',
+  initialMode = 'user-login'
+}) {
+  const [authMode, setAuthMode] = useState(initialMode); // 'user-login', 'user-signup', 'admin-login'
   
   // Form states
   const [email, setEmail] = useState('');
@@ -14,6 +20,14 @@ export default function AuthGate({ onLogin }) {
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (initialMode) {
+      setAuthMode(initialMode);
+    }
+  }, [initialMode, isOpen]);
+
+  if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,6 +47,7 @@ export default function AuthGate({ onLogin }) {
         const dbRes = await loginUserInDb(cleanInput, password);
         if (dbRes && dbRes.id) {
           onLogin(dbRes, rememberMe);
+          if (onClose) onClose();
           setLoading(false);
           return;
         }
@@ -59,6 +74,7 @@ export default function AuthGate({ onLogin }) {
 
         await recordLoginInDb(existingUser);
         onLogin(existingUser, rememberMe);
+        if (onClose) onClose();
       } catch (err) {
         setError(err.message || 'Login failed.');
       } finally {
@@ -92,6 +108,7 @@ export default function AuthGate({ onLogin }) {
             registerUser(payload);
           } catch (e) {}
           onLogin(dbUser, rememberMe);
+          if (onClose) onClose();
           setLoading(false);
           return;
         }
@@ -99,6 +116,7 @@ export default function AuthGate({ onLogin }) {
         const newUser = registerUser(payload);
         await recordLoginInDb(newUser);
         onLogin(newUser, rememberMe);
+        if (onClose) onClose();
       } catch (err) {
         setError(err.message || 'Registration failed.');
       } finally {
@@ -121,13 +139,13 @@ export default function AuthGate({ onLogin }) {
         };
         await recordLoginInDb(adminUser);
         onLogin(adminUser, rememberMe);
+        if (onClose) onClose();
       } else {
         setError('Invalid Admin Passkey. Access restricted.');
       }
     }
   };
 
-  // Quick 1-click login helpers for instant testing
   const handleQuickCustomer = async () => {
     const user = {
       id: 'usr_krish_jindal',
@@ -139,6 +157,7 @@ export default function AuthGate({ onLogin }) {
     };
     await recordLoginInDb(user);
     onLogin(user, true);
+    if (onClose) onClose();
   };
 
   const handleQuickAdmin = async () => {
@@ -152,49 +171,69 @@ export default function AuthGate({ onLogin }) {
     };
     await recordLoginInDb(admin);
     onLogin(admin, true);
+    if (onClose) onClose();
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#080b11] text-white flex flex-col justify-center items-center px-4 py-12 overflow-hidden selection:bg-primary selection:text-black">
-      {/* Ambient background glow and grid */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,240,255,0.12),_transparent_55%)] pointer-events-none" />
-      <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-cyan-500/10 blur-[100px] pointer-events-none" />
-      <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-amber-500/10 blur-[100px] pointer-events-none" />
+    <div
+      className="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      {/* Card Container */}
+      <div
+        className="relative w-full max-w-md rounded-3xl border border-white/15 bg-[#0d131f]/95 p-6 sm:p-8 shadow-[0_25px_60px_rgba(0,0,0,0.85)] backdrop-blur-2xl text-white my-auto animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close Button if onClose provided */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 h-9 w-9 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+            title="Close"
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        )}
 
-      {/* Brand Header */}
-      <div className="relative z-10 flex flex-col items-center text-center mb-8">
-        <div className="relative mb-3 flex items-center justify-center">
-          <div className="h-20 w-20 rounded-2xl p-0.5 bg-gradient-to-tr from-cyan-400 via-amber-300 to-cyan-500 shadow-[0_0_35px_rgba(0,240,255,0.4)]">
-            <div className="h-full w-full rounded-2xl overflow-hidden bg-black flex items-center justify-center">
-              <img
-                src="/gmc_logo.jpg"
-                alt="Gagan Mobile Care"
-                className="h-full w-full object-cover"
-              />
+        {/* Brand Header */}
+        <div className="flex flex-col items-center text-center mb-6">
+          <div className="relative mb-2.5 flex items-center justify-center">
+            <div className="h-16 w-16 rounded-2xl p-0.5 bg-gradient-to-tr from-cyan-400 via-amber-300 to-cyan-500 shadow-[0_0_25px_rgba(0,240,255,0.4)]">
+              <div className="h-full w-full rounded-2xl overflow-hidden bg-black flex items-center justify-center">
+                <img
+                  src="/gmc_logo.jpg"
+                  alt="Gagan Mobile Care"
+                  className="h-full w-full object-cover"
+                />
+              </div>
             </div>
+            <span className="absolute -bottom-1.5 right-[-6px] rounded-full bg-cyan-400 px-2 py-0.2 text-[9px] font-black uppercase text-black shadow-md tracking-wider">
+              Verified
+            </span>
           </div>
-          <span className="absolute -bottom-2 right-[-8px] rounded-full bg-cyan-400 px-2 py-0.5 text-[10px] font-black uppercase text-black shadow-md tracking-wider">
-            Verified
-          </span>
+
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-1.5">
+            GAGAN <span className="bg-gradient-to-r from-cyan-300 to-amber-300 bg-clip-text text-transparent">MOBILE CARE</span>
+          </h2>
+          <p className="mt-0.5 text-xs text-gray-400">
+            Maur Mandi, Punjab • Official Mobile & Gadgets Hub
+          </p>
         </div>
 
-        <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white flex items-center gap-2">
-          GAGAN <span className="bg-gradient-to-r from-cyan-300 to-amber-300 bg-clip-text text-transparent">MOBILE CARE</span>
-        </h1>
-        <p className="mt-1 text-sm text-gray-400 max-w-sm">
-          Maur Mandi, Punjab • Official Mobile Care & Premium Gadgets Hub
-        </p>
-      </div>
+        {/* Prompt Alert if opened via ordering action */}
+        {promptMessage && (
+          <div className="mb-4 rounded-xl border border-cyan-400/40 bg-cyan-500/10 px-3.5 py-2.5 text-xs font-semibold text-cyan-300 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px] text-cyan-400">shopping_bag</span>
+            <span>{promptMessage}</span>
+          </div>
+        )}
 
-      {/* Main Auth Card */}
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-[#0f141f]/90 p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.7)] backdrop-blur-xl">
-        
         {/* Navigation Tabs */}
-        <div className="flex rounded-xl bg-black/40 p-1 mb-6 border border-white/5">
+        <div className="flex rounded-xl bg-black/50 p-1 mb-5 border border-white/5">
           <button
             type="button"
             onClick={() => { setAuthMode('user-login'); setError(''); }}
-            className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
+            className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition-all ${
               authMode === 'user-login'
                 ? 'bg-cyan-400 text-black shadow-[0_0_15px_rgba(0,240,255,0.35)]'
                 : 'text-gray-400 hover:text-white'
@@ -205,7 +244,7 @@ export default function AuthGate({ onLogin }) {
           <button
             type="button"
             onClick={() => { setAuthMode('user-signup'); setError(''); }}
-            className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
+            className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition-all ${
               authMode === 'user-signup'
                 ? 'bg-cyan-400 text-black shadow-[0_0_15px_rgba(0,240,255,0.35)]'
                 : 'text-gray-400 hover:text-white'
@@ -216,7 +255,7 @@ export default function AuthGate({ onLogin }) {
           <button
             type="button"
             onClick={() => { setAuthMode('admin-login'); setError(''); }}
-            className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-1 ${
+            className={`flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${
               authMode === 'admin-login'
                 ? 'bg-amber-400 text-black shadow-[0_0_15px_rgba(251,191,36,0.35)]'
                 : 'text-gray-400 hover:text-amber-300'
@@ -229,22 +268,22 @@ export default function AuthGate({ onLogin }) {
 
         {/* Form Error Banner */}
         {error && (
-          <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-xs font-medium text-red-400 flex items-center gap-2">
+          <div className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 px-3.5 py-2 text-xs font-medium text-red-400 flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">error</span>
             {error}
           </div>
         )}
 
         {/* Dynamic Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
           {/* USER SIGNUP: Full Name */}
           {authMode === 'user-signup' && (
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-300 mb-1">
                 Full Name
               </label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[20px]">
+                <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[18px]">
                   person
                 </span>
                 <input
@@ -253,7 +292,7 @@ export default function AuthGate({ onLogin }) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Krish Jindal"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
                 />
               </div>
             </div>
@@ -262,11 +301,11 @@ export default function AuthGate({ onLogin }) {
           {/* USER LOGIN & SIGNUP: Email/Username */}
           {authMode !== 'admin-login' ? (
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-300 mb-1">
                 Email or Mobile Number
               </label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[20px]">
+                <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[18px]">
                   mail
                 </span>
                 <input
@@ -275,19 +314,19 @@ export default function AuthGate({ onLogin }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="customer@gmail.com or 9876543210"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
                 />
               </div>
             </div>
           ) : (
             /* ADMIN LOGIN: Admin Email */
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-amber-300 mb-1.5 flex items-center justify-between">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-amber-300 mb-1 flex items-center justify-between">
                 <span>Admin Identifier</span>
                 <span className="text-[10px] text-gray-400 lowercase">e.g. admin@gaganmobile.com</span>
               </label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-2.5 text-amber-400 text-[20px]">
+                <span className="material-symbols-outlined absolute left-3 top-2.5 text-amber-400 text-[18px]">
                   manage_accounts
                 </span>
                 <input
@@ -296,7 +335,7 @@ export default function AuthGate({ onLogin }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@gaganmobile.com"
-                  className="w-full rounded-xl border border-amber-500/30 bg-white/5 pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-all"
+                  className="w-full rounded-xl border border-amber-500/30 bg-white/5 pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-all"
                 />
               </div>
             </div>
@@ -305,11 +344,11 @@ export default function AuthGate({ onLogin }) {
           {/* Phone Number (Optional on signup) */}
           {authMode === 'user-signup' && (
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">
-                Phone Number (For Order WhatsApp Updates)
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-300 mb-1">
+                Phone Number (For Order Delivery & Updates)
               </label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[20px]">
+                <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[18px]">
                   call
                 </span>
                 <input
@@ -317,7 +356,7 @@ export default function AuthGate({ onLogin }) {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+91 98765 43210"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
                 />
               </div>
             </div>
@@ -326,11 +365,11 @@ export default function AuthGate({ onLogin }) {
           {/* Password (User) */}
           {authMode !== 'admin-login' ? (
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-300 mb-1">
                 Password
               </label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[20px]">
+                <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-[18px]">
                   lock
                 </span>
                 <input
@@ -339,18 +378,18 @@ export default function AuthGate({ onLogin }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400 transition-all"
                 />
               </div>
             </div>
           ) : (
             /* Admin Passkey */
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-amber-300 mb-1.5 flex items-center justify-between">
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-amber-300 mb-1 flex items-center justify-between">
                 <span>Security Passkey</span>
               </label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-2.5 text-amber-400 text-[20px]">
+                <span className="material-symbols-outlined absolute left-3 top-2.5 text-amber-400 text-[18px]">
                   key
                 </span>
                 <input
@@ -359,14 +398,14 @@ export default function AuthGate({ onLogin }) {
                   value={adminKey}
                   onChange={(e) => setAdminKey(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-amber-500/30 bg-white/5 pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-all"
+                  className="w-full rounded-xl border border-amber-500/30 bg-white/5 pl-9 pr-4 py-2 text-xs sm:text-sm text-white placeholder-gray-500 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-all"
                 />
               </div>
             </div>
           )}
 
           {/* Remember session checkbox */}
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center justify-between pt-0.5">
             <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
               <input
                 type="checkbox"
@@ -374,12 +413,12 @@ export default function AuthGate({ onLogin }) {
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="rounded border-gray-700 bg-white/10 text-cyan-400 focus:ring-0"
               />
-              Stay logged in on this browser
+              Stay logged in
             </label>
             {authMode === 'user-login' && (
               <button
                 type="button"
-                onClick={() => alert('Password reset link sent to your registered phone / email.')}
+                onClick={() => alert('Password reset link sent to your registered contact.')}
                 className="text-xs text-cyan-400 hover:underline"
               >
                 Forgot?
@@ -390,7 +429,8 @@ export default function AuthGate({ onLogin }) {
           {/* Submit Action Button */}
           <button
             type="submit"
-            className={`w-full py-3 px-4 rounded-xl font-bold text-sm tracking-wide transition-all duration-300 flex items-center justify-center gap-2 ${
+            disabled={loading}
+            className={`w-full py-2.5 sm:py-3 px-4 rounded-xl font-bold text-xs sm:text-sm tracking-wide transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-lg disabled:opacity-60 ${
               authMode === 'admin-login'
                 ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-black hover:shadow-[0_0_25px_rgba(251,191,36,0.4)]'
                 : 'bg-gradient-to-r from-cyan-400 to-blue-500 text-black hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]'
@@ -399,27 +439,36 @@ export default function AuthGate({ onLogin }) {
             <span className="material-symbols-outlined text-[18px]">
               {authMode === 'admin-login' ? 'security' : 'login'}
             </span>
-            {authMode === 'user-login' && 'Enter Customer Store'}
-            {authMode === 'user-signup' && 'Create Customer Account'}
-            {authMode === 'admin-login' && 'Open Admin Control Center'}
+            {loading ? 'Please wait...' : (
+              <>
+                {authMode === 'user-login' && 'Sign In & Continue'}
+                {authMode === 'user-signup' && 'Create Account & Order'}
+                {authMode === 'admin-login' && 'Open Admin Control Center'}
+              </>
+            )}
           </button>
         </form>
 
-        {/* Quick Admin Access Only */}
-        <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-gray-400">
-          <span>Official Store Administrator?</span>
+        {/* Quick Demo Customer / Admin Access */}
+        <div className="mt-4 pt-3.5 border-t border-white/5 flex items-center justify-between gap-2 text-xs">
+          <button
+            type="button"
+            onClick={handleQuickCustomer}
+            className="flex-1 py-1.5 px-2 rounded-lg border border-cyan-400/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 font-semibold transition-all text-center truncate"
+          >
+            ⚡ Quick Test Customer
+          </button>
           <button
             type="button"
             onClick={handleQuickAdmin}
-            className="flex items-center gap-1.5 py-1.5 px-3 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-semibold transition-all"
+            className="flex-1 py-1.5 px-2 rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-semibold transition-all text-center truncate"
           >
-            <span className="material-symbols-outlined text-[15px]">admin_panel_settings</span>
-            Store Admin Access
+            🛡️ Store Admin Login
           </button>
         </div>
 
         {/* Help contact */}
-        <div className="mt-6 text-center text-xs text-gray-500">
+        <div className="mt-4 text-center text-[11px] text-gray-500">
           Need in-person assistance? Call Gagan Mobile Care:{' '}
           <a href="tel:9872622624" className="text-cyan-400 font-semibold hover:underline">
             98726-22624

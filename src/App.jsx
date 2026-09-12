@@ -62,6 +62,17 @@ export default function App() {
   const [users, setUsers] = useState(INITIAL_REGISTERED_USERS);
   const [loginSessions, setLoginSessions] = useState([]);
 
+  // Auth Modal state for login / signup prompts
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authPromptMessage, setAuthPromptMessage] = useState('');
+  const [authModalMode, setAuthModalMode] = useState('user-login');
+
+  const openAuthModal = (message = '', mode = 'user-login') => {
+    setAuthPromptMessage(message);
+    setAuthModalMode(mode);
+    setIsAuthModalOpen(true);
+  };
+
   // Toast Notification state
   const [toast, setToast] = useState(null);
   const showToast = (msg) => {
@@ -92,6 +103,7 @@ export default function App() {
 
   const handleLogin = async (user, remember = true) => {
     setCurrentUser(user);
+    setIsAuthModalOpen(false);
     if (remember) {
       try {
         localStorage.setItem('gmc_auth_user', JSON.stringify(user));
@@ -591,26 +603,9 @@ export default function App() {
   const cartTotalCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
   // ----------------------------------------------------
-  // SCENARIO 1: Visitor is NOT logged in -> Show Auth Gate
+  // SCENARIO 1: Logged in as ADMIN (and not previewing store)
   // ----------------------------------------------------
-  if (!currentUser) {
-    return (
-      <>
-        <AuthGate onLogin={handleLogin} />
-        {toast && (
-          <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-full border border-primary/40 bg-[#161d2d]/95 px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(0,0,0,0.8)] backdrop-blur-md">
-            <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
-            {toast}
-          </div>
-        )}
-      </>
-    );
-  }
-
-  // ----------------------------------------------------
-  // SCENARIO 2: Logged in as ADMIN (and not previewing store)
-  // ----------------------------------------------------
-  if (currentUser.role === 'admin' && !adminPreviewMode) {
+  if (currentUser && currentUser.role === 'admin' && !adminPreviewMode) {
     return (
       <>
         <AdminDashboard
@@ -671,12 +666,25 @@ export default function App() {
         wishlistCount={wishlist.length}
         onOpenWishlist={() => setIsWishlistOpen(true)}
         ordersCount={userOrders.length}
-        onOpenOrders={() => setIsOrdersOpen(true)}
+        onOpenOrders={() => {
+          if (currentUser) {
+            setIsOrdersOpen(true);
+          } else {
+            openAuthModal('Sign in to view your previous orders & tracking details.');
+          }
+        }}
         onOpenSupport={() => setIsSupportOpen(true)}
-        onOpenProfile={() => setIsProfileOpen(true)}
+        onOpenProfile={() => {
+          if (currentUser) {
+            setIsProfileOpen(true);
+          } else {
+            openAuthModal('Sign in to view and manage your profile & addresses.');
+          }
+        }}
         currentUser={currentUser}
         onLogout={handleLogout}
         onOpenAdminDashboard={() => setAdminPreviewMode(false)}
+        onOpenAuthModal={(msg, mode) => openAuthModal(msg, mode)}
       />
 
       {/* Admin Preview Mode Floating Banner */}
@@ -729,7 +737,13 @@ export default function App() {
         {/* Customer Diaries & Deliveries Experience (Real Buyer Photos) */}
         <CustomerExperience
           stories={stories}
-          onOpenAddModal={() => setIsAddStoryOpen(true)}
+          onOpenAddModal={() => {
+            if (currentUser?.role === 'admin') {
+              setIsAddStoryOpen(true);
+            } else {
+              openAuthModal('Store Owner credentials required to publish customer diaries.', 'admin-login');
+            }
+          }}
           onSelectStory={(story) => setSelectedStory(story)}
         />
 
@@ -825,9 +839,15 @@ export default function App() {
         onClearCart={handleClearCart}
         onPlaceOrder={handlePlaceOrder}
         onViewInvoice={(order) => setSelectedInvoiceOrder(order)}
+        currentUser={currentUser}
+        onOpenAuthModal={(msg) => openAuthModal(msg, 'user-login')}
         onOpenOrders={() => {
           setIsCartOpen(false);
-          setIsOrdersOpen(true);
+          if (currentUser) {
+            setIsOrdersOpen(true);
+          } else {
+            openAuthModal('Sign in to view your previous orders & tracking details.');
+          }
         }}
       />
 
@@ -843,6 +863,15 @@ export default function App() {
         isOpen={!!selectedStory}
         story={selectedStory}
         onClose={() => setSelectedStory(null)}
+      />
+
+      {/* Login / Sign Up Modal */}
+      <AuthGate
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLogin={handleLogin}
+        promptMessage={authPromptMessage}
+        initialMode={authModalMode}
       />
 
       {/* Notification Toast */}

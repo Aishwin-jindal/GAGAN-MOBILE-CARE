@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Trash2, Plus, Minus, CheckCircle, ArrowRight, Tag, Check, FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Trash2, Plus, Minus, CheckCircle, ArrowRight, Tag, Check, FileText, Lock, UserCheck } from 'lucide-react';
 import { STORE_OFFERS } from '../data/offers';
 
 export default function CartDrawer({
@@ -15,7 +15,9 @@ export default function CartDrawer({
   onOpenOrders,
   appliedOffer,
   onApplyOffer,
-  onViewInvoice
+  onViewInvoice,
+  currentUser,
+  onOpenAuthModal
 }) {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [placedOrderId, setPlacedOrderId] = useState('');
@@ -24,6 +26,13 @@ export default function CartDrawer({
   const [customerPhone, setCustomerPhone] = useState('');
   const [couponInput, setCouponInput] = useState('');
   const [couponError, setCouponError] = useState('');
+
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.name && !customerName) setCustomerName(currentUser.name);
+      if (currentUser.phone && !customerPhone) setCustomerPhone(currentUser.phone);
+    }
+  }, [currentUser]);
 
   if (!isOpen) return null;
 
@@ -54,6 +63,13 @@ export default function CartDrawer({
 
   const handleCheckoutSubmit = (e) => {
     e.preventDefault();
+    if (!currentUser) {
+      if (onOpenAuthModal) {
+        onOpenAuthModal('Please Sign In or Create an Account to complete your order! 🛍️');
+      }
+      return;
+    }
+
     const orderId = `GMC-${Math.floor(1000 + Math.random() * 9000)}`;
     setPlacedOrderId(orderId);
 
@@ -62,9 +78,9 @@ export default function CartDrawer({
       date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
       status: 'Confirmed',
       statusStep: 1,
-      customerName: customerName || 'Valued Customer',
-      customerPhone: customerPhone,
-      deliveryAddress: 'Store Pickup / Priority Delivery',
+      customerName: customerName || currentUser?.name || 'Valued Customer',
+      customerPhone: customerPhone || currentUser?.phone || '',
+      deliveryAddress: currentUser?.address || 'Store Pickup / Priority Delivery, Maur Mandi',
       paymentMethod: 'Pay on Store Counter / COD',
       trackingNumber: `GMC-EXP-${Math.floor(100000 + Math.random() * 900000)}`,
       discount: totalDiscount,
@@ -122,12 +138,12 @@ export default function CartDrawer({
               Order Placed Successfully!
             </h3>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-              Thank you, <strong>{customerName || 'Valued Customer'}</strong>! Your order has been added to your previous orders list. Order ID: <strong style={{ color: 'var(--accent-cyan)' }}>#{placedOrderId}</strong>.
+              Thank you, <strong>{customerName || currentUser?.name || 'Valued Customer'}</strong>! Your order has been added to your account orders list. Order ID: <strong style={{ color: 'var(--accent-cyan)' }}>#{placedOrderId}</strong>.
             </p>
             <div style={{ background: '#131b2b', padding: '1.25rem', borderRadius: 'var(--radius-md)', textAlign: 'left', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
               <div style={{ color: '#fff', fontWeight: 700, marginBottom: '0.5rem' }}>Gagan Mobile Care Store Pickup & Delivery:</div>
-              <div>📍 Store Address: Main Market, Gagan Mobile Care Hub</div>
-              <div>📞 Helpline / WhatsApp: +91 98765 43210</div>
+              <div>📍 Store Address: Main Market, Gagan Mobile Care Hub, Maur Mandi</div>
+              <div>📞 Helpline / WhatsApp: +91 98726-22624</div>
               <div>⏱️ Status: Confirmed & Saved to My Orders</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -312,32 +328,58 @@ export default function CartDrawer({
                 </span>
               </div>
 
-              {/* Quick Checkout Form */}
-              <form onSubmit={handleCheckoutSubmit} style={{ marginTop: '0.5rem' }}>
-                <div className="form-group" style={{ marginBottom: '0.5rem' }}>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Your Name"
-                    required
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                  />
+              {/* Quick Checkout Area */}
+              {currentUser ? (
+                <form onSubmit={handleCheckoutSubmit} style={{ marginTop: '0.75rem' }}>
+                  <div style={{ background: 'rgba(0,240,255,0.06)', border: '1px solid rgba(0,240,255,0.2)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#93c5fd' }}>
+                    <UserCheck size={15} style={{ color: 'var(--accent-cyan)' }} />
+                    <span>Logged in as <strong>{currentUser.name}</strong> ({currentUser.email})</span>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '0.5rem' }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Receiver Name"
+                      required
+                      value={customerName || currentUser.name || ''}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      placeholder="Delivery Mobile Phone"
+                      required
+                      value={customerPhone || currentUser.phone || ''}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                    />
+                  </div>
+                  <button type="submit" className="btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    Confirm Order & Reserve <ArrowRight size={16} style={{ marginLeft: 6 }} />
+                  </button>
+                </form>
+              ) : (
+                <div style={{ marginTop: '0.75rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 'var(--radius-md)', padding: '0.85rem', textAlign: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: '#facc15', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.4rem' }}>
+                    <Lock size={15} />
+                    <span>Login or Sign Up to Order</span>
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                    Please sign in or create an account to place this order and track real-time delivery status.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onOpenAuthModal && onOpenAuthModal('Please sign in or create an account to place your order! 🛍️')}
+                    className="btn-primary"
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+                  >
+                    <span>Sign In / Sign Up to Order</span>
+                    <ArrowRight size={15} />
+                  </button>
                 </div>
-                <div className="form-group" style={{ marginBottom: '0.75rem' }}>
-                  <input
-                    type="tel"
-                    className="form-input"
-                    placeholder="Mobile Phone Number"
-                    required
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                  />
-                </div>
-                <button type="submit" className="btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  Confirm Order & Reserve <ArrowRight size={16} style={{ marginLeft: 6 }} />
-                </button>
-              </form>
+              )}
             </div>
           </>
         )}

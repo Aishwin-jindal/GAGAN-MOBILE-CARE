@@ -21,13 +21,13 @@ export default function SupportModal({ isOpen, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '620px' }}>
-        <button className="modal-close" onClick={onClose}>
+      <div className="modal-card w-full max-w-[620px] p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose} title="Close">
           <X size={18} />
         </button>
 
-        <div className="flex items-center gap-3.5 mb-3">
-          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border-2 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.35)]">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="h-12 w-12 sm:h-14 sm:w-14 shrink-0 overflow-hidden rounded-full border-2 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.35)]">
             <img
               src="/gmc_logo.jpg"
               alt="Gagan Mobile Care Maur"
@@ -35,117 +35,146 @@ export default function SupportModal({ isOpen, onClose }) {
             />
           </div>
           <div>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff', marginBottom: '0.15rem' }}>
+            <h2 className="text-lg sm:text-xl font-black text-white">
               Gagan Mobile Care
             </h2>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            <p className="text-xs text-gray-400">
               Official Store • Maur Mandi (Ph: +91 98726-22624)
             </p>
           </div>
         </div>
 
         {/* Tab switcher */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        <div className="flex flex-wrap gap-2 mb-4">
           {[
-            { id: 'contact', label: 'Store Location & Info', icon: MapPin },
+            { id: 'contact', label: 'Store & Location', icon: MapPin },
             { id: 'repair', label: 'Repair Status', icon: Wrench },
             { id: 'warranty', label: 'Warranty Check', icon: Shield }
           ].map((tab) => {
             const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
-                className={`brand-card ${activeTab === tab.id ? 'active' : ''}`}
-                style={{ padding: '0.6rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                className={`flex-1 min-w-[120px] py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${
+                  isActive
+                    ? 'border-cyan-400 bg-cyan-500/10 text-cyan-300 shadow-[0_0_12px_rgba(0,240,255,0.2)]'
+                    : 'border-white/10 bg-white/5 text-gray-400 hover:text-white'
+                }`}
                 onClick={() => setActiveTab(tab.id)}
               >
-                <Icon size={14} /> {tab.label}
+                <Icon size={14} />
+                <span>{tab.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Tab Content 1: Contact & Store */}
+        {/* Tab 1: Store Contact & Location */}
         {activeTab === 'contact' && (
-          <div style={{ background: '#131b2b', borderRadius: 'var(--radius-md)', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-              <MapPin style={{ color: 'var(--accent-cyan)', marginTop: 3 }} size={20} />
-              <div>
-                <strong style={{ color: '#fff', fontSize: '0.95rem' }}>Gagan Mobile Care - Maur Mandi</strong>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  Main Market, Maur Mandi, Dist. Bathinda, Punjab - 151509
-                </p>
+          <div className="space-y-3.5 text-xs sm:text-sm">
+            <div className="bg-[#131b2b] p-3.5 sm:p-4 rounded-xl border border-white/5">
+              <div className="text-white font-bold mb-1 flex items-center gap-1.5">
+                <MapPin size={16} className="text-cyan-400" />
+                <span>Retail Counter Address</span>
+              </div>
+              <p className="text-gray-400 text-xs leading-relaxed">
+                Main Market Road, Near City Bus Stand & Clock Tower, Maur Mandi, Bathinda District, Punjab - 151509
+              </p>
+            </div>
+
+            <div className="bg-[#131b2b] p-3.5 sm:p-4 rounded-xl border border-white/5">
+              <div className="text-white font-bold mb-1 flex items-center gap-1.5">
+                <Phone size={16} className="text-cyan-400" />
+                <span>Call & WhatsApp Helpline</span>
+              </div>
+              <p className="text-gray-400 text-xs mb-2">
+                Talk directly to store owner Gagan for orders, stock inquiry, or live repair updates:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <a
+                  href="tel:9872622624"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-400 text-black px-3 py-1.5 font-bold text-xs shadow-md"
+                >
+                  <Phone size={13} /> Call 98726-22624
+                </a>
+                <a
+                  href="https://wa.me/919872622624"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 text-white px-3 py-1.5 font-bold text-xs shadow-md"
+                >
+                  💬 WhatsApp Us
+                </a>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-              <Phone style={{ color: 'var(--accent-cyan)', marginTop: 3 }} size={20} />
-              <div>
-                <strong style={{ color: '#fff', fontSize: '0.95rem' }}>Phone & WhatsApp Support</strong>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  <a href="tel:+919872622624" className="text-amber-400 font-bold hover:underline">
-                    +91 98726-22624
-                  </a>{' '}
-                  (Store Hours: 10:00 AM - 9:00 PM)
-                </p>
+            <div className="bg-[#131b2b] p-3.5 sm:p-4 rounded-xl border border-white/5">
+              <div className="text-white font-bold mb-1 flex items-center gap-1.5">
+                <Clock size={16} className="text-cyan-400" />
+                <span>Working Hours</span>
               </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-              <Clock style={{ color: 'var(--accent-cyan)', marginTop: 3 }} size={20} />
-              <div>
-                <strong style={{ color: '#fff', fontSize: '0.95rem' }}>Store Timings</strong>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  Open All 7 Days: 10:00 AM to 9:30 PM
-                </p>
-              </div>
+              <p className="text-gray-400 text-xs">
+                Monday to Sunday: <strong>9:30 AM - 9:00 PM</strong> (Open 7 Days a week)
+              </p>
             </div>
           </div>
         )}
 
-        {/* Tab Content 2: Repair Status */}
+        {/* Tab 2: Repair Status Tracker */}
         {activeTab === 'repair' && (
-          <div>
-            <form onSubmit={handleCheckRepair} className="form-group" style={{ display: 'flex', gap: '0.5rem' }}>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Enter Repair Ticket Number (e.g. REP-9921)"
-                value={repairCode}
-                onChange={(e) => setRepairCode(e.target.value)}
-                required
-              />
-              <button type="submit" className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
-                Track
-              </button>
+          <div className="space-y-4">
+            <form onSubmit={handleCheckRepair} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1">
+                  Enter Repair Job Sheet / Token Number:
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="e.g. REP-7731 or Mobile Number"
+                    value={repairCode}
+                    onChange={(e) => setRepairCode(e.target.value)}
+                    className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-xs sm:text-sm text-white focus:border-cyan-400 focus:outline-none"
+                    required
+                  />
+                  <button type="submit" className="btn-primary px-4 py-2 text-xs font-bold shrink-0">
+                    Track Status
+                  </button>
+                </div>
+              </div>
             </form>
 
             {repairStatusResult && (
-              <div style={{ background: '#131b2b', borderRadius: 'var(--radius-md)', padding: '1.25rem', border: '1px solid var(--accent-cyan)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent-cyan)', fontWeight: 700, marginBottom: '0.5rem' }}>
-                  <CheckCircle size={18} /> {repairStatusResult.status}
+              <div className="bg-[#131b2b] p-4 rounded-xl border border-cyan-400/30 text-xs sm:text-sm animate-in fade-in">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold mb-2">
+                  <CheckCircle size={16} />
+                  <span>Job #{repairStatusResult.code} Found</span>
                 </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                  <div>Device: <strong>{repairStatusResult.device}</strong></div>
-                  <div>Ticket ID: <strong>{repairStatusResult.code}</strong></div>
-                  <div>Repair Estimate: <strong>{repairStatusResult.cost}</strong></div>
+                <div className="space-y-1 text-gray-300 text-xs">
+                  <div>📱 Device: <strong>{repairStatusResult.device}</strong></div>
+                  <div>🔧 Status: <strong className="text-cyan-300">{repairStatusResult.status}</strong></div>
+                  <div>💰 Service Estimate: <strong>{repairStatusResult.cost}</strong></div>
+                  <div>📅 Updated: <strong>{repairStatusResult.date}</strong></div>
                 </div>
               </div>
             )}
           </div>
         )}
 
-        {/* Tab Content 3: Warranty */}
+        {/* Tab 3: Warranty Checker */}
         {activeTab === 'warranty' && (
-          <div style={{ background: '#131b2b', borderRadius: 'var(--radius-md)', padding: '1.25rem' }}>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-              All phones purchased from Gagan Mobile Care include 100% official brand warranty + complimentary 1-Year GMC Screen Protect Coverage.
-            </p>
-            <div className="form-group">
-              <label className="form-label">IMEI or Serial Number</label>
-              <input type="text" className="form-input" placeholder="Enter 15-digit IMEI number" />
+          <div className="bg-[#131b2b] p-4 rounded-xl border border-white/5 text-xs sm:text-sm space-y-2">
+            <div className="text-white font-bold flex items-center gap-1.5">
+              <Shield size={16} className="text-amber-400" />
+              <span>GMC Genuine Warranty Shield</span>
             </div>
-            <button className="btn-primary" style={{ width: '100%' }}>Verify GMC Warranty</button>
+            <p className="text-gray-400 text-xs leading-relaxed">
+              All smartphones sold at Gagan Mobile Care include 1-Year Official Brand Manufacturer Warranty with GST invoice.
+            </p>
+            <div className="pt-2 text-xs text-gray-300">
+              Need assistance with official brand service centers in Bathinda / Mansa? Bring your GMC tax bill to our store for priority support!
+            </div>
           </div>
         )}
       </div>
