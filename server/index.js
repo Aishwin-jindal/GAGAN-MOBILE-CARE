@@ -1336,6 +1336,264 @@ app.post('/api/wishlist/:userId', async (req, res) => {
   }
 });
 
+// ----------------------------------------------------
+// 6. REPAIRS DESK & TRACKING API
+// ----------------------------------------------------
+app.get('/api/repairs', async (req, res) => {
+  try {
+    if (!isDbConnected()) return res.status(503).json({ error: 'Database offline' });
+    const result = await pool.query('SELECT * FROM repairs ORDER BY created_at DESC');
+    const formatted = result.rows.map((r) => ({
+      id: r.id,
+      customerName: r.customer_name,
+      customerPhone: r.customer_phone,
+      deviceModel: r.device_model,
+      issue: r.issue,
+      estimatedCost: r.estimated_cost,
+      notes: r.notes || '',
+      status: r.status || 'Received',
+      receivedDate: r.received_date || 'Recent',
+      createdAt: r.created_at
+    }));
+    res.json(formatted);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/repairs/track/:query', async (req, res) => {
+  try {
+    if (!isDbConnected()) return res.status(503).json({ error: 'Database offline' });
+    const query = req.params.query.trim().toLowerCase();
+    const cleanDigits = query.replace(/[^0-9]/g, '');
+
+    const result = await pool.query(
+      `SELECT * FROM repairs
+       WHERE LOWER(id) = $1 
+          OR LOWER(customer_phone) LIKE $2 
+          OR REPLACE(customer_phone, ' ', '') LIKE $2
+       ORDER BY created_at DESC LIMIT 1`,
+      [query, `%${cleanDigits || query}%`]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No repair job sheet found matching this token or mobile number.' });
+    }
+
+    const r = result.rows[0];
+    res.json({
+      id: r.id,
+      customerName: r.customer_name,
+      customerPhone: r.customer_phone,
+      deviceModel: r.device_model,
+      issue: r.issue,
+      estimatedCost: r.estimated_cost,
+      notes: r.notes || '',
+      status: r.status || 'Repairing',
+      receivedDate: r.received_date || 'Recent',
+      createdAt: r.created_at
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/repairs', async (req, res) => {
+  try {
+    if (!isDbConnected()) return res.status(503).json({ error: 'Database offline' });
+    const r = req.body;
+    const repairId = r.id || 'REP-' + Math.floor(1000 + Math.random() * 9000);
+    const date = r.receivedDate || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const cost = parseFloat(r.estimatedCost ? r.estimatedCost.toString().replace(/[^0-9.]/g, '') : 0) || 1500;
+
+    const result = await pool.query(
+      `INSERT INTO repairs (id, customer_name, customer_phone, device_model, issue, estimated_cost, notes, status, received_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        repairId,
+        r.customerName || 'Customer',
+        r.customerPhone || '+91 98726-22624',
+        r.deviceModel || 'Smartphone',
+        r.issue || 'Diagnostic & Service',
+        cost,
+        r.notes || '',
+        r.status || 'Received',
+        date
+      ]
+    );
+
+    const inserted = result.rows[0];
+    res.status(201).json({
+      id: inserted.id,
+      customerName: inserted.customer_name,
+      customerPhone: inserted.customer_phone,
+      deviceModel: inserted.device_model,
+      issue: inserted.issue,
+      estimatedCost: inserted.estimated_cost,
+      notes: inserted.notes,
+      status: inserted.status,
+      receivedDate: inserted.received_date,
+      createdAt: inserted.created_at
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/repairs/:id/status', async (req, res) => {
+  try {
+    if (!isDbConnected()) return res.status(503).json({ error: 'Database offline' });
+    const { id } = req.params;
+    const { status, notes } = req.body;
+    const result = await pool.query(
+      `UPDATE repairs 
+       SET status = COALESCE($1, status),
+           notes = COALESCE($2, notes)
+       WHERE id = $3
+       RETURNING *`,
+      [status, notes, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Repair ticket not found' });
+    const r = result.rows[0];
+    res.json({
+      id: r.id,
+      customerName: r.customer_name,
+      customerPhone: r.customer_phone,
+      deviceModel: r.device_model,
+      issue: r.issue,
+      estimatedCost: r.estimated_cost,
+      notes: r.notes,
+      status: r.status,
+      receivedDate: r.received_date,
+      createdAt: r.created_at
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/repairs/:id', async (req, res) => {
+  try {
+    if (!isDbConnected()) return res.status(503).json({ error: 'Database offline' });
+    const { id } = req.params;
+    await pool.query('DELETE FROM repairs WHERE id = $1', [id]);
+    res.json({ success: true, message: 'Repair ticket deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ----------------------------------------------------
+// 7. TRADE-IN EXCHANGE INQUIRIES API
+// ----------------------------------------------------
+app.get('/api/trade-ins', async (req, res) => {
+  try {
+    if (!isDbConnected()) return res.status(503).json({ error: 'Database offline' });
+    const result = await pool.query('SELECT * FROM trade_in_inquiries ORDER BY created_at DESC');
+    const formatted = result.rows.map((t) => ({
+      id: t.id,
+      customerName: t.customer_name,
+      customerPhone: t.customer_phone,
+      deviceName: t.device_name,
+      condition: t.condition,
+      estimatedValue: parseFloat(t.estimated_value) || 0,
+      targetDevice: t.target_device || 'Store Purchase',
+      status: t.status || 'Pending Review',
+      date: t.date || 'Recent',
+      createdAt: t.created_at
+    }));
+    res.json(formatted);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/trade-ins', async (req, res) => {
+  try {
+    if (!isDbConnected()) return res.status(503).json({ error: 'Database offline' });
+    const t = req.body;
+    const inquiryId = t.id || 'EXC-' + Math.floor(1000 + Math.random() * 9000);
+    const date = t.date || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const value = parseFloat(t.estimatedValue ? t.estimatedValue.toString().replace(/[^0-9.]/g, '') : 0) || 5000;
+
+    const result = await pool.query(
+      `INSERT INTO trade_in_inquiries (id, customer_name, customer_phone, device_name, condition, estimated_value, target_device, status, date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        inquiryId,
+        t.customerName || 'Customer',
+        t.customerPhone || '+91 98726-22624',
+        t.deviceName || 'Old Device',
+        t.condition || 'Good',
+        value,
+        t.targetDevice || 'Store Upgrade',
+        t.status || 'Pending Review',
+        date
+      ]
+    );
+
+    const inserted = result.rows[0];
+    res.status(201).json({
+      id: inserted.id,
+      customerName: inserted.customer_name,
+      customerPhone: inserted.customer_phone,
+      deviceName: inserted.device_name,
+      condition: inserted.condition,
+      estimatedValue: parseFloat(inserted.estimated_value),
+      targetDevice: inserted.target_device,
+      status: inserted.status,
+      date: inserted.date,
+      createdAt: inserted.created_at
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/trade-ins/:id/status', async (req, res) => {
+  try {
+    if (!isDbConnected()) return res.status(503).json({ error: 'Database offline' });
+    const { id } = req.params;
+    const { status } = req.body;
+    const result = await pool.query(
+      `UPDATE trade_in_inquiries 
+       SET status = $1
+       WHERE id = $2
+       RETURNING *`,
+      [status, id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Trade-in inquiry not found' });
+    const t = result.rows[0];
+    res.json({
+      id: t.id,
+      customerName: t.customer_name,
+      customerPhone: t.customer_phone,
+      deviceName: t.device_name,
+      condition: t.condition,
+      estimatedValue: parseFloat(t.estimated_value),
+      targetDevice: t.target_device,
+      status: t.status,
+      date: t.date,
+      createdAt: t.created_at
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/trade-ins/:id', async (req, res) => {
+  try {
+    if (!isDbConnected()) return res.status(503).json({ error: 'Database offline' });
+    const { id } = req.params;
+    await pool.query('DELETE FROM trade_in_inquiries WHERE id = $1', [id]);
+    res.json({ success: true, message: 'Trade-in record deleted' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // START SERVER AND AUTO-INIT DATABASE
 const server = app.listen(PORT, async () => {
   console.log(`🚀 Gagan Mobile Care PostgreSQL Backend listening on http://localhost:${PORT}`);

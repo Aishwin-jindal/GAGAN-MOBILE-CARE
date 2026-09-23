@@ -15,9 +15,11 @@ export default function AdminDashboard({
   onDeleteStory,
   tradeInInquiries = [],
   onUpdateTradeInStatus,
+  onDeleteTradeIn,
   repairs = [],
   onAddRepair,
   onUpdateRepairStatus,
+  onDeleteRepair,
   users = [],
   loginSessions = [],
   onRefreshUsers
@@ -28,6 +30,9 @@ export default function AdminDashboard({
   const [productBrandFilter, setProductBrandFilter] = useState('all');
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState('all');
+
+  // Form error state
+  const [formError, setFormError] = useState('');
 
   // Add Product Form State
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
@@ -80,7 +85,7 @@ export default function AdminDashboard({
   const handleCreateProduct = (e) => {
     e.preventDefault();
     if (!newProd.name || !newProd.price) {
-      alert('Please fill in product name and price.');
+      setFormError('Please fill in product name and price.');
       return;
     }
 
@@ -94,6 +99,7 @@ export default function AdminDashboard({
     };
 
     onAddProduct(created);
+    setFormError('');
     setIsAddProductOpen(false);
     setNewProd({
       name: '',
@@ -118,7 +124,7 @@ export default function AdminDashboard({
   const handleCreateRepair = (e) => {
     e.preventDefault();
     if (!newRepair.customerName || !newRepair.deviceModel) {
-      alert('Please provide customer name and device model.');
+      setFormError('Please provide customer name and device model.');
       return;
     }
     const created = {
@@ -128,6 +134,7 @@ export default function AdminDashboard({
       receivedDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
     };
     onAddRepair(created);
+    setFormError('');
     setIsAddRepairOpen(false);
     setNewRepair({
       customerName: '',
@@ -699,6 +706,18 @@ export default function AdminDashboard({
                         >
                           {req.status === 'Contacted' ? 'Mark Completed' : 'Mark Contacted'}
                         </button>
+
+                        <button
+                          onClick={() => {
+                            if (confirm(`Delete exchange inquiry #${req.id}?`)) {
+                              onDeleteTradeIn && onDeleteTradeIn(req.id);
+                            }
+                          }}
+                          className="rounded-lg bg-red-500/10 hover:bg-red-500/20 px-2 py-1.5 text-red-400 border border-red-500/30"
+                          title="Delete inquiry"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">delete</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -783,15 +802,29 @@ export default function AdminDashboard({
                         ))}
                       </div>
 
-                      <a
-                        href={`https://wa.me/91${rep.customerPhone?.replace(/[^0-9]/g, '').slice(-10)}?text=Hello%20${encodeURIComponent(rep.customerName)},%20your%20device%20${encodeURIComponent(rep.deviceModel)}%20repair%20status%20is:%20${encodeURIComponent(rep.status)}%20at%20Gagan%20Mobile%20Care.`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 px-2.5 py-1 text-xs text-emerald-300 border border-emerald-500/40"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">chat</span>
-                        Notify
-                      </a>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`https://wa.me/91${rep.customerPhone?.replace(/[^0-9]/g, '').slice(-10)}?text=Hello%20${encodeURIComponent(rep.customerName)},%20your%20device%20${encodeURIComponent(rep.deviceModel)}%20repair%20status%20is:%20${encodeURIComponent(rep.status)}%20at%20Gagan%20Mobile%20Care.`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 px-2.5 py-1 text-xs text-emerald-300 border border-emerald-500/40"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">chat</span>
+                          Notify
+                        </a>
+
+                        <button
+                          onClick={() => {
+                            if (confirm(`Delete repair ticket #${rep.id}?`)) {
+                              onDeleteRepair && onDeleteRepair(rep.id);
+                            }
+                          }}
+                          className="rounded-lg bg-red-500/10 hover:bg-red-500/20 px-2 py-1 text-red-400 border border-red-500/30"
+                          title="Delete ticket"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">delete</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1105,6 +1138,13 @@ export default function AdminDashboard({
             </div>
 
             <form onSubmit={handleCreateProduct} className="space-y-4 text-xs">
+              {formError && (
+                <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-2.5 text-xs text-red-300 font-semibold flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-sm">error</span>
+                  <span>{formError}</span>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-gray-400 font-semibold mb-1">Product Name</label>
@@ -1268,6 +1308,13 @@ export default function AdminDashboard({
             </div>
 
             <form onSubmit={handleCreateRepair} className="space-y-3.5 text-xs">
+              {formError && (
+                <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-2.5 text-xs text-red-300 font-semibold flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-sm">error</span>
+                  <span>{formError}</span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-gray-400 font-semibold mb-1">Customer Name</label>
                 <input

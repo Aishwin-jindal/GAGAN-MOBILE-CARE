@@ -26,42 +26,42 @@ export default function Footer({ onOpenSupport }) {
         </p>
       </div>
 
-      <div className="flex max-w-2xl flex-wrap items-center gap-x-lg gap-y-md md:justify-end">
+      <div className="flex max-w-2xl flex-wrap items-center gap-x-6 gap-y-3 md:justify-end text-xs font-semibold">
         <button
-          onClick={onOpenSupport}
-          className="text-on-surface-variant transition-colors hover:text-primary hover:opacity-80"
+          onClick={() => onOpenSupport && onOpenSupport('location')}
+          className="text-on-surface-variant transition-colors hover:text-cyan-400"
         >
-          Store Locator
+          📍 Store Locator
         </button>
         <button
-          onClick={onOpenSupport}
-          className="text-on-surface-variant transition-colors hover:text-primary hover:opacity-80"
+          onClick={() => onOpenSupport && onOpenSupport('repair')}
+          className="text-on-surface-variant transition-colors hover:text-cyan-400"
         >
-          Privacy Policy
+          🔧 Service Center & Repair Desk
         </button>
         <button
-          onClick={onOpenSupport}
-          className="text-on-surface-variant transition-colors hover:text-primary hover:opacity-80"
+          onClick={() => onOpenSupport && onOpenSupport('warranty')}
+          className="text-on-surface-variant transition-colors hover:text-cyan-400"
         >
-          Terms of Service
+          🛡️ Warranty Shield
         </button>
         <button
-          onClick={onOpenSupport}
-          className="text-on-surface-variant transition-colors hover:text-primary hover:opacity-80"
+          onClick={() => onOpenSupport && onOpenSupport('privacy')}
+          className="text-on-surface-variant transition-colors hover:text-cyan-400"
         >
-          Contact Us
+          🔒 Privacy Policy
         </button>
         <button
-          onClick={onOpenSupport}
-          className="text-on-surface-variant transition-colors hover:text-primary hover:opacity-80"
+          onClick={() => onOpenSupport && onOpenSupport('terms')}
+          className="text-on-surface-variant transition-colors hover:text-cyan-400"
         >
-          Service Center
+          📄 Terms & Returns
         </button>
         <button
-          onClick={onOpenSupport}
-          className="text-on-surface-variant transition-colors hover:text-primary hover:opacity-80"
+          onClick={() => onOpenSupport && onOpenSupport('contact')}
+          className="text-on-surface-variant transition-colors hover:text-cyan-400"
         >
-          Warranty
+          📞 Contact Us
         </button>
       </div>
     </footer>

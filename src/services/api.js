@@ -184,3 +184,63 @@ export async function updateUserProfileInDb(profile) {
   });
 }
 
+// ----------------------------------------------------
+// 6. REPAIRS DESK API
+// ----------------------------------------------------
+export async function getRepairsFromDb() {
+  return await fetchApi('/repairs');
+}
+
+export async function trackRepairFromDb(query) {
+  if (!query) return null;
+  return await fetchApi(`/repairs/track/${encodeURIComponent(query.trim())}`);
+}
+
+export async function createRepairInDb(repair) {
+  return await fetchApi('/repairs', {
+    method: 'POST',
+    body: JSON.stringify(repair)
+  });
+}
+
+export async function updateRepairStatusInDb(id, status, notes) {
+  return await fetchApi(`/repairs/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, notes })
+  });
+}
+
+export async function deleteRepairInDb(id) {
+  return await fetchApi(`/repairs/${id}`, {
+    method: 'DELETE'
+  });
+}
+
+// ----------------------------------------------------
+// 7. TRADE-IN EXCHANGE INQUIRIES API
+// ----------------------------------------------------
+export async function getTradeInsFromDb() {
+  return await fetchApi('/trade-ins');
+}
+
+export async function createTradeInInDb(inquiry) {
+  return await fetchApi('/trade-ins', {
+    method: 'POST',
+    body: JSON.stringify(inquiry)
+  });
+}
+
+export async function updateTradeInStatusInDb(id, status) {
+  return await fetchApi(`/trade-ins/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status })
+  });
+}
+
+export async function deleteTradeInInDb(id) {
+  return await fetchApi(`/trade-ins/${id}`, {
+    method: 'DELETE'
+  });
+}
+
+

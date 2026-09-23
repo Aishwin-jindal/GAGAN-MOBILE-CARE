@@ -44,7 +44,15 @@ import {
   updateUserProfileInDb,
   getUsersFromDb,
   getLoginsFromDb,
-  recordLoginInDb
+  recordLoginInDb,
+  getRepairsFromDb,
+  createRepairInDb,
+  updateRepairStatusInDb,
+  deleteRepairInDb,
+  getTradeInsFromDb,
+  createTradeInInDb,
+  updateTradeInStatusInDb,
+  deleteTradeInInDb
 } from './services/api';
 
 export default function App() {
@@ -139,6 +147,14 @@ export default function App() {
       const dbStories = await getStoriesFromDb();
       if (dbStories && dbStories.length > 0) {
         setStories(dbStories);
+      }
+      const dbRepairs = await getRepairsFromDb();
+      if (dbRepairs && dbRepairs.length > 0) {
+        setRepairs(dbRepairs);
+      }
+      const dbTradeIns = await getTradeInsFromDb();
+      if (dbTradeIns && dbTradeIns.length > 0) {
+        setTradeInInquiries(dbTradeIns);
       }
       refreshUsersAndLogins();
     }
@@ -367,11 +383,18 @@ export default function App() {
     } catch (e) {}
   }, [tradeInInquiries]);
 
-  const handleUpdateTradeInStatus = (id, status) => {
+  const handleUpdateTradeInStatus = async (id, status) => {
     setTradeInInquiries((prev) =>
       prev.map((item) => (item.id === id ? { ...item, status } : item))
     );
     showToast(`Exchange inquiry #${id} status updated to ${status}`);
+    await updateTradeInStatusInDb(id, status);
+  };
+
+  const handleDeleteTradeIn = async (id) => {
+    setTradeInInquiries((prev) => prev.filter((item) => item.id !== id));
+    showToast(`Trade-in inquiry #${id} deleted.`);
+    await deleteTradeInInDb(id);
   };
 
   // Repairs desk state (persisted for Admin)
@@ -386,7 +409,7 @@ export default function App() {
           customerPhone: '+91 98789 22345',
           deviceModel: 'iPhone 14 Pro',
           issue: 'Screen Replacement (Original OLED)',
-          estimatedCost: '14500',
+          estimatedCost: 14500,
           notes: 'Client needs original TrueTone calibration',
           status: 'Repairing'
         },
@@ -397,7 +420,7 @@ export default function App() {
           customerPhone: '+91 98881 77654',
           deviceModel: 'OnePlus 11R',
           issue: 'Charging Port & Battery Replacement',
-          estimatedCost: '3200',
+          estimatedCost: 3200,
           notes: '160W SuperVOOC port connector damaged',
           status: 'Ready'
         }
@@ -413,16 +436,24 @@ export default function App() {
     } catch (e) {}
   }, [repairs]);
 
-  const handleAddRepair = (repair) => {
+  const handleAddRepair = async (repair) => {
     setRepairs((prev) => [repair, ...prev]);
-    showToast(`Repair Ticket #${repair.id} generated!`);
+    showToast(`Repair Ticket #${repair.id} logged successfully! 🔧`);
+    await createRepairInDb(repair);
   };
 
-  const handleUpdateRepairStatus = (id, status) => {
+  const handleUpdateRepairStatus = async (id, status, notes) => {
     setRepairs((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status } : r))
+      prev.map((r) => (r.id === id ? { ...r, status, notes: notes !== undefined ? notes : r.notes } : r))
     );
     showToast(`Repair #${id} marked as ${status}`);
+    await updateRepairStatusInDb(id, status, notes);
+  };
+
+  const handleDeleteRepair = async (id) => {
+    setRepairs((prev) => prev.filter((r) => r.id !== id));
+    showToast(`Repair ticket #${id} deleted.`);
+    await deleteRepairInDb(id);
   };
 
   // Modal open states
@@ -430,6 +461,13 @@ export default function App() {
   const [isTradeInOpen, setIsTradeInOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [supportInitialTab, setSupportInitialTab] = useState('contact');
+
+  const handleOpenSupport = (tab = 'contact') => {
+    setSupportInitialTab(tab);
+    setIsSupportOpen(true);
+  };
+
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState(null);
@@ -468,23 +506,37 @@ export default function App() {
     setTradeInDevice('');
   };
 
-  const handleApplyTradeInDiscount = (val, deviceName) => {
+  const handleApplyTradeInDiscount = async (valOrLead, deviceName) => {
+    let val = 0;
+    let dev = '';
+    let newInquiry = null;
+
+    if (typeof valOrLead === 'object' && valOrLead !== null) {
+      newInquiry = valOrLead;
+      val = newInquiry.estimatedValue || 0;
+      dev = newInquiry.deviceName || '';
+    } else {
+      val = valOrLead || 0;
+      dev = deviceName || '';
+      newInquiry = {
+        id: 'EXC-' + Math.floor(1000 + Math.random() * 9000),
+        date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        customerName: currentUser?.name || 'Customer',
+        customerPhone: currentUser?.phone || '+91 98765 43210',
+        deviceName: dev,
+        condition: 'Customer Evaluated',
+        estimatedValue: val,
+        targetDevice: 'Store Purchase',
+        status: 'Pending Review'
+      };
+    }
+
     setTradeInDiscount(val);
-    setTradeInDevice(deviceName);
-    // Record inquiry lead for admin
-    const newInquiry = {
-      id: 'EXC-' + Math.floor(1000 + Math.random() * 9000),
-      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      customerName: currentUser?.name || 'Customer',
-      customerPhone: currentUser?.phone || '+91 98765 43210',
-      deviceName: deviceName,
-      condition: 'Customer Evaluated',
-      estimatedValue: val,
-      targetDevice: 'Store Purchase',
-      status: 'Pending Review'
-    };
+    setTradeInDevice(dev);
     setTradeInInquiries((prev) => [newInquiry, ...prev]);
+    showToast(`Applied ₹${val.toLocaleString('en-IN')} Trade-in Credit! 🏷️`);
     setIsCartOpen(true);
+    await createTradeInInDb(newInquiry);
   };
 
   // Wishlist handlers
@@ -623,9 +675,11 @@ export default function App() {
           onDeleteStory={handleDeleteStory}
           tradeInInquiries={tradeInInquiries}
           onUpdateTradeInStatus={handleUpdateTradeInStatus}
+          onDeleteTradeIn={handleDeleteTradeIn}
           repairs={repairs}
           onAddRepair={handleAddRepair}
           onUpdateRepairStatus={handleUpdateRepairStatus}
+          onDeleteRepair={handleDeleteRepair}
           users={users}
           loginSessions={loginSessions}
           onRefreshUsers={refreshUsersAndLogins}
@@ -673,7 +727,7 @@ export default function App() {
             openAuthModal('Sign in to view your previous orders & tracking details.');
           }
         }}
-        onOpenSupport={() => setIsSupportOpen(true)}
+        onOpenSupport={(tab) => handleOpenSupport(tab || 'contact')}
         onOpenProfile={() => {
           if (currentUser) {
             setIsProfileOpen(true);
@@ -768,7 +822,7 @@ export default function App() {
       </main>
 
       {/* GMC Footer */}
-      <Footer onOpenSupport={() => setIsSupportOpen(true)} />
+      <Footer onOpenSupport={(tab) => handleOpenSupport(tab || 'contact')} />
 
       {/* Modals & Overlays */}
       <OrdersModal
@@ -779,7 +833,7 @@ export default function App() {
         onViewInvoice={(order) => setSelectedInvoiceOrder(order)}
         onOpenSupport={() => {
           setIsOrdersOpen(false);
-          setIsSupportOpen(true);
+          handleOpenSupport('repair');
         }}
       />
 
@@ -808,6 +862,9 @@ export default function App() {
       <SupportModal
         isOpen={isSupportOpen}
         onClose={() => setIsSupportOpen(false)}
+        initialTab={supportInitialTab}
+        repairs={repairs}
+        onAddRepairConsultation={handleAddRepair}
       />
 
       <ProductDetailModal
@@ -824,6 +881,8 @@ export default function App() {
         isOpen={isTradeInOpen}
         onClose={() => setIsTradeInOpen(false)}
         onApplyDiscount={handleApplyTradeInDiscount}
+        currentUser={currentUser}
+        onSubmitTradeInLead={handleApplyTradeInDiscount}
       />
 
       <CartDrawer

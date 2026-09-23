@@ -157,7 +157,96 @@ export async function initDatabase() {
         ]
       );
     }
-    console.log('✅ Customer stories synchronized with brand and tags.');
+    // 5. Seed Repairs if empty
+    const repairsCountRes = await client.query('SELECT COUNT(*) FROM repairs');
+    if (parseInt(repairsCountRes.rows[0].count) === 0) {
+      console.log('🌱 Seeding initial repair tickets into PostgreSQL...');
+      const sampleRepairs = [
+        {
+          id: 'REP-7731',
+          customerName: 'Harpreet Singh',
+          customerPhone: '+91 98789 22345',
+          deviceModel: 'iPhone 14 Pro',
+          issue: 'Screen Replacement (Original OLED)',
+          estimatedCost: 14500,
+          notes: 'Client needs original TrueTone calibration',
+          status: 'Repairing',
+          receivedDate: '07 Sep 2024'
+        },
+        {
+          id: 'REP-7729',
+          customerName: 'Rajesh Kumar',
+          customerPhone: '+91 98881 77654',
+          deviceModel: 'OnePlus 11R',
+          issue: 'Charging Port & Battery Replacement',
+          estimatedCost: 3200,
+          notes: '160W SuperVOOC port connector damaged',
+          status: 'Ready for Pickup',
+          receivedDate: '06 Sep 2024'
+        },
+        {
+          id: 'REP-7725',
+          customerName: 'Gurpreet Kaur',
+          customerPhone: '+91 94178 99120',
+          deviceModel: 'Samsung Galaxy S23 Ultra',
+          issue: 'Camera Lens Glass Replacement',
+          estimatedCost: 2800,
+          notes: 'Official Samsung genuine sapphire crystal lens fitted',
+          status: 'Delivered',
+          receivedDate: '04 Sep 2024'
+        }
+      ];
+
+      for (const r of sampleRepairs) {
+        await client.query(
+          `INSERT INTO repairs (id, customer_name, customer_phone, device_model, issue, estimated_cost, notes, status, received_date)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (id) DO NOTHING`,
+          [r.id, r.customerName, r.customerPhone, r.deviceModel, r.issue, r.estimatedCost, r.notes, r.status, r.receivedDate]
+        );
+      }
+      console.log('✅ Repairs table initialized.');
+    }
+
+    // 6. Seed Trade-In Inquiries if empty
+    const tradeCountRes = await client.query('SELECT COUNT(*) FROM trade_in_inquiries');
+    if (parseInt(tradeCountRes.rows[0].count) === 0) {
+      console.log('🌱 Seeding initial trade-in inquiries into PostgreSQL...');
+      const sampleTradeIns = [
+        {
+          id: 'EXC-1092',
+          date: '06 Sep 2024',
+          customerName: 'Aman Sharma',
+          customerPhone: '+91 98142 88219',
+          deviceName: 'iPhone 13 128GB Blue',
+          condition: 'Flawless',
+          estimatedValue: 34500,
+          targetDevice: 'iPhone 16 Pro Max',
+          status: 'Pending Review'
+        },
+        {
+          id: 'EXC-1088',
+          date: '04 Sep 2024',
+          customerName: 'Simran Kaur',
+          customerPhone: '+91 94630 11928',
+          deviceName: 'Samsung S21 FE 5G',
+          condition: 'Good (Minor Scratches)',
+          estimatedValue: 16800,
+          targetDevice: 'Samsung S24 Ultra',
+          status: 'Contacted'
+        }
+      ];
+
+      for (const t of sampleTradeIns) {
+        await client.query(
+          `INSERT INTO trade_in_inquiries (id, customer_name, customer_phone, device_name, condition, estimated_value, target_device, status, date)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (id) DO NOTHING`,
+          [t.id, t.customerName, t.customerPhone, t.deviceName, t.condition, t.estimatedValue, t.targetDevice, t.status, t.date]
+        );
+      }
+      console.log('✅ Trade-In inquiries initialized.');
+    }
 
     console.log('🎉 PostgreSQL Database is ready and fully synchronized!');
     return true;
