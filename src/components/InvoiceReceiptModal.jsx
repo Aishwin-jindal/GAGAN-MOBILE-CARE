@@ -70,15 +70,18 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
   }, 0);
 
   const orderTotalGiven = order.total !== undefined && order.total !== null ? Number(order.total) : null;
-  const discount = Number(order.discount) || (orderTotalGiven !== null && rawSubtotal > orderTotalGiven ? rawSubtotal - orderTotalGiven : 0);
-  const finalTotal = orderTotalGiven !== null ? orderTotalGiven : Math.max(0, rawSubtotal - discount);
+  const rawDiscount = Number(order.discount) || (orderTotalGiven !== null && rawSubtotal > orderTotalGiven ? rawSubtotal - orderTotalGiven : 0);
+  
+  // Discount can never exceed subtotal on the tax bill
+  const discount = Math.min(rawSubtotal, Math.max(0, rawDiscount));
+  const finalTotal = orderTotalGiven !== null ? Math.max(0, orderTotalGiven) : Math.max(0, rawSubtotal - discount);
 
   // Exact 18% GST Breakdown (Inclusive Retail Price Calculation)
   // Taxable Value + CGST (9%) + SGST (9%) = finalTotal
-  const taxableValue = Math.round((finalTotal / 1.18) * 100) / 100;
-  const totalGst = Math.round((finalTotal - taxableValue) * 100) / 100;
-  const cgst = Math.round((totalGst / 2) * 100) / 100;
-  const sgst = Math.round((totalGst - cgst) * 100) / 100;
+  const taxableValue = finalTotal > 0 ? Math.round((finalTotal / 1.18) * 100) / 100 : 0;
+  const totalGst = finalTotal > 0 ? Math.round((finalTotal - taxableValue) * 100) / 100 : 0;
+  const cgst = finalTotal > 0 ? Math.round((totalGst / 2) * 100) / 100 : 0;
+  const sgst = finalTotal > 0 ? Math.round((totalGst - cgst) * 100) / 100 : 0;
 
   const invoiceNumber = `GMC/INV/${String(order.id || '').replace(/^GMC-?/i, '') || '8492'}`;
   const invoiceDate = order.date || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -496,39 +499,39 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Floating Modal Bar */}
-        <div className="flex items-center justify-between border-b border-white/10 bg-[#121c2e] px-4 sm:px-6 py-2.5 print:hidden">
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-400/20 text-cyan-400 border border-cyan-400/30">
+        <div className="flex items-center justify-between border-b border-white/10 bg-[#121c2e] px-3 sm:px-6 py-2.5 print:hidden gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-400/20 text-cyan-400 border border-cyan-400/30">
               <Printer size={16} />
             </span>
-            <div>
-              <h3 className="text-xs sm:text-sm font-bold text-white">Official Tax Invoice & Bill</h3>
-              <p className="text-[10px] text-gray-400">Order #{order.id} • 1-Page Verified Receipt</p>
+            <div className="min-w-0">
+              <h3 className="text-xs sm:text-sm font-bold text-white truncate">Official Tax Invoice & Bill</h3>
+              <p className="text-[10px] text-gray-400 truncate">Order #{order.id} • 1-Page Receipt</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 rounded-full bg-cyan-400 hover:bg-cyan-300 px-3.5 py-1.5 text-xs font-bold text-black shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all"
+              className="flex items-center gap-1.5 rounded-full bg-cyan-400 hover:bg-cyan-300 px-3.5 py-1.5 text-xs font-bold text-black shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all whitespace-nowrap shrink-0"
               title="Print 1-Page Clean Receipt"
             >
               <Printer size={14} />
-              Print (1 Page)
+              <span>Print (1 Page)</span>
             </button>
 
             <button
               onClick={handleDownload}
-              className="flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-bold text-white transition-all"
+              className="hidden sm:flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-bold text-white transition-all whitespace-nowrap shrink-0"
               title="Download Invoice File"
             >
               <Download size={14} />
-              Download
+              <span>Download</span>
             </button>
 
             <button
               onClick={onClose}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors ml-1"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-400 hover:bg-white/10 hover:text-white transition-colors ml-1"
             >
               <X size={16} />
             </button>
@@ -537,241 +540,245 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
 
         {/* Printable Receipt Paper Container (In-App Preview) */}
         <div className="flex-1 overflow-y-auto p-2 sm:p-4 bg-[#050b14]">
-          <div
-            ref={receiptRef}
-            id="printable-tax-invoice"
-            className="mx-auto max-w-xl bg-[#ffffff] text-[#0f172a] rounded-xl p-4 sm:p-5 shadow-2xl font-sans border border-gray-200"
-          >
-            {/* Store Branding Header (Compact 1-Page Layout) */}
-            <div className="flex items-start justify-between border-b-2 border-gray-900 pb-3 gap-2">
-              <div className="flex items-start gap-2.5">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-cyan-400 border border-amber-500/50 shadow-sm font-black text-sm">
-                  GMC
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <h1 className="text-base sm:text-lg font-black tracking-tight text-gray-900 uppercase leading-none">
-                      GAGAN MOBILE CARE
-                    </h1>
-                    <span className="rounded bg-amber-500/20 text-amber-900 font-bold px-1 py-0.2 text-[9px] uppercase border border-amber-500/40">
-                      MAUR
-                    </span>
+          <div className="w-full overflow-x-auto">
+            <div
+              ref={receiptRef}
+              id="printable-tax-invoice"
+              className="mx-auto w-full max-w-xl min-w-[320px] bg-[#ffffff] text-[#0f172a] rounded-xl p-3.5 sm:p-5 shadow-2xl font-sans border border-gray-200"
+            >
+              {/* Store Branding Header (Responsive) */}
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between border-b-2 border-gray-900 pb-3 gap-2.5">
+                <div className="flex items-start gap-2.5">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-cyan-400 border border-amber-500/50 shadow-sm font-black text-sm">
+                    GMC
                   </div>
-                  <p className="text-[10px] font-semibold text-gray-700 mt-0.5 leading-tight">
-                    Official Smartphone Retail, Genuine Accessories & Express Care
-                  </p>
-                  <p className="text-[9px] text-gray-600 leading-tight">
-                    Main Market, Maur Mandi, Dist. Bathinda, Punjab - 151509
-                  </p>
-                  <p className="text-[9px] text-gray-600 leading-tight">
-                    GSTIN: <span className="font-mono font-bold text-gray-900">03AAAFG8923Q1Z5</span> | State: 03 (Punjab)
-                  </p>
-                  <p className="text-[9px] text-gray-600 leading-tight">
-                    Helpline: <span className="font-bold text-gray-900">+91 98726-22624</span>
-                  </p>
-                </div>
-              </div>
-
-              <div className="text-right shrink-0">
-                <span className="inline-block rounded bg-gray-900 px-2 py-0.5 font-mono text-[9.5px] font-black uppercase text-white">
-                  TAX INVOICE / BILL
-                </span>
-                <div className="mt-1 text-[10px]">
-                  <span className="text-gray-500 font-medium">Inv #: </span>
-                  <span className="font-mono font-bold text-gray-900">
-                    {invoiceNumber}
-                  </span>
-                </div>
-                <div className="text-[10px]">
-                  <span className="text-gray-500 font-medium">Date: </span>
-                  <span className="font-semibold text-gray-900">
-                    {invoiceDate}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Customer & Delivery Details */}
-            <div className="grid grid-cols-2 gap-2 border-b border-gray-200 py-2.5 text-[10px]">
-              <div>
-                <span className="font-bold uppercase text-gray-500 text-[9px]">
-                  Billed To (Customer):
-                </span>
-                <div className="text-xs font-bold text-gray-900 truncate">
-                  {order.customerName || 'Valued Customer'}
-                </div>
-                <div className="text-gray-700">
-                  Mob: <span className="font-mono font-semibold">{order.customerPhone || '+91 98726-22624'}</span>
-                </div>
-                <div className="text-gray-600 truncate">
-                  Address: {order.deliveryAddress || order.shippingAddress || 'Store Pickup - Counter #1, Maur Mandi'}
-                </div>
-              </div>
-
-              <div className="text-right">
-                <span className="font-bold uppercase text-gray-500 text-[9px]">
-                  Payment & Fulfillment:
-                </span>
-                <div className="text-gray-800 truncate">
-                  Mode: <strong className="text-gray-900">{order.paymentMethod || 'Pay on Store Counter / COD'}</strong>
-                </div>
-                <div className="text-gray-800">
-                  Status: <strong className="text-emerald-700">✓ {order.status || 'Confirmed'}</strong>
-                </div>
-                <div className="text-gray-600 truncate">
-                  Ref: <span className="font-mono font-semibold">{order.trackingNumber || 'GMC-EXP-892174'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Bill Itemized Table */}
-            <div className="my-2.5">
-              <table className="w-full text-left text-[10px] border-collapse">
-                <thead>
-                  <tr className="border-b-2 border-gray-900 bg-gray-100 text-[9px] font-bold text-gray-800 uppercase">
-                    <th className="py-1.5 px-1.5 w-6">#</th>
-                    <th className="py-1.5 px-1.5">Item Description & Brand</th>
-                    <th className="py-1.5 px-1.5 text-center w-10">Qty</th>
-                    <th className="py-1.5 px-1.5 text-right w-20">Unit Price</th>
-                    <th className="py-1.5 px-1.5 text-right w-20">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {items.map((item, idx) => {
-                    const p = Number(item.price) || 0;
-                    const q = Number(item.quantity) || 1;
-                    return (
-                      <tr key={idx}>
-                        <td className="py-1.5 px-1.5 font-mono text-gray-500">{idx + 1}</td>
-                        <td className="py-1.5 px-1.5">
-                          <div className="font-bold text-gray-900 text-[11px] leading-tight">{item.name}</div>
-                          <div className="text-[9px] text-gray-500 leading-none mt-0.5">
-                            Brand: <span className="uppercase font-semibold">{item.brand || 'GMC'}</span> • HSN: {item.category === 'accessories' ? '85183000' : '85171300'}
-                          </div>
-                        </td>
-                        <td className="py-1.5 px-1.5 text-center font-mono font-semibold text-gray-900">
-                          {q}
-                        </td>
-                        <td className="py-1.5 px-1.5 text-right font-mono text-gray-700">
-                          ₹{p.toLocaleString('en-IN')}
-                        </td>
-                        <td className="py-1.5 px-1.5 text-right font-mono font-bold text-gray-900">
-                          ₹{(p * q).toLocaleString('en-IN')}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Calculation & Totals Summary */}
-            <div className="border-t-2 border-gray-900 pt-2 text-[10px]">
-              <div className="flex justify-between gap-4">
-                {/* Left Side: Amount in Words & Guarantees */}
-                <div className="flex-1 space-y-1.5">
-                  <div className="rounded bg-gray-50 p-2 border border-gray-200">
-                    <span className="block font-bold text-gray-500 text-[8px] uppercase">
-                      Amount in Words:
-                    </span>
-                    <span className="font-bold text-gray-900 italic text-[10px] leading-tight block">
-                      {numberToWordsINR(finalTotal)}
-                    </span>
-                  </div>
-
-                  <div className="space-y-0.5 text-[9px] text-gray-600">
-                    <div className="flex items-center gap-1 font-semibold text-gray-800">
-                      <ShieldCheck size={11} className="text-emerald-600 shrink-0" />
-                      Warranty & Protection Included:
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h1 className="text-base sm:text-lg font-black tracking-tight text-gray-900 uppercase leading-none">
+                        GAGAN MOBILE CARE
+                      </h1>
+                      <span className="rounded bg-amber-500/20 text-amber-900 font-bold px-1 py-0.2 text-[9px] uppercase border border-amber-500/40">
+                        MAUR
+                      </span>
                     </div>
-                    <div>• 1-Year Official Brand Warranty + GMC Quality Guarantee</div>
-                    <div>• 7-Day Replacement against technical defect</div>
-                    <div>• GST Invoice eligible for input tax credit (ITC)</div>
+                    <p className="text-[10px] font-semibold text-gray-700 mt-0.5 leading-tight">
+                      Official Smartphone Retail, Genuine Accessories & Express Care
+                    </p>
+                    <p className="text-[9px] text-gray-600 leading-tight">
+                      Main Market, Maur Mandi, Dist. Bathinda, Punjab - 151509
+                    </p>
+                    <p className="text-[9px] text-gray-600 leading-tight">
+                      GSTIN: <span className="font-mono font-bold text-gray-900">03AAAFG8923Q1Z5</span> | State: 03 (Punjab)
+                    </p>
+                    <p className="text-[9px] text-gray-600 leading-tight">
+                      Helpline: <span className="font-bold text-gray-900">+91 98726-22624</span>
+                    </p>
                   </div>
                 </div>
 
-                {/* Right Side: Totals breakdown */}
-                <div className="w-48 space-y-1 text-[10px] shrink-0">
-                  <div className="flex justify-between text-gray-600">
-                    <span>Gross Subtotal:</span>
-                    <span className="font-mono">₹{rawSubtotal.toLocaleString('en-IN')}</span>
+                <div className="sm:text-right shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-gray-200 flex sm:block justify-between items-center">
+                  <span className="inline-block rounded bg-gray-900 px-2 py-0.5 font-mono text-[9.5px] font-black uppercase text-white">
+                    TAX INVOICE / BILL
+                  </span>
+                  <div className="sm:mt-1 text-[10px]">
+                    <span className="text-gray-500 font-medium">Inv #: </span>
+                    <span className="font-mono font-bold text-gray-900">
+                      {invoiceNumber}
+                    </span>
                   </div>
-
-                  {discount > 0 && (
-                    <div className="flex justify-between font-semibold text-emerald-700">
-                      <span>Discount / Coupon:</span>
-                      <span className="font-mono">- ₹{discount.toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between text-gray-500 text-[9px] pt-0.5 border-t border-gray-200">
-                    <span>Taxable Value (Excl. Tax):</span>
-                    <span className="font-mono">₹{taxableValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-500 text-[9px]">
-                    <span>CGST (9%):</span>
-                    <span className="font-mono">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-500 text-[9px]">
-                    <span>SGST (9%):</span>
-                    <span className="font-mono">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-xs font-black text-gray-900 border-t-2 border-gray-900 pt-1">
-                    <span className="uppercase">Net Amount Paid:</span>
-                    <span className="font-mono text-sm font-extrabold text-blue-900">
-                      ₹{finalTotal.toLocaleString('en-IN')}
+                  <div className="text-[10px]">
+                    <span className="text-gray-500 font-medium">Date: </span>
+                    <span className="font-semibold text-gray-900">
+                      {invoiceDate}
                     </span>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Signature & Seal Footer */}
-            <div className="mt-4 border-t border-gray-200 pt-2 flex items-end justify-between text-[9px] text-gray-500">
-              <div className="flex items-center gap-2">
-                <div className="h-10 w-10 rounded border border-gray-300 p-0.5 flex items-center justify-center bg-gray-50">
-                  <QrCode size={32} className="text-gray-800" />
-                </div>
+              {/* Customer & Delivery Details */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border-b border-gray-200 py-2.5 text-[10px]">
                 <div>
-                  <div className="font-bold text-gray-800 text-[9px]">Scan to Verify Authenticity</div>
-                  <div className="text-[8px] text-gray-500">Official GMC Digitally Signed Invoice</div>
-                  <div className="text-[8px] text-emerald-700 font-semibold">✓ Authorized Retail Store Copy</div>
+                  <span className="font-bold uppercase text-gray-500 text-[9px]">
+                    Billed To (Customer):
+                  </span>
+                  <div className="text-xs font-bold text-gray-900 truncate">
+                    {order.customerName || 'Valued Customer'}
+                  </div>
+                  <div className="text-gray-700">
+                    Mob: <span className="font-mono font-semibold">{order.customerPhone || '+91 98726-22624'}</span>
+                  </div>
+                  <div className="text-gray-600">
+                    Address: {order.deliveryAddress || order.shippingAddress || 'Store Pickup - Counter #1, Maur Mandi'}
+                  </div>
+                </div>
+
+                <div className="sm:text-right pt-1 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                  <span className="font-bold uppercase text-gray-500 text-[9px]">
+                    Payment & Fulfillment:
+                  </span>
+                  <div className="text-gray-800">
+                    Mode: <strong className="text-gray-900">{order.paymentMethod || 'Pay on Store Counter / COD'}</strong>
+                  </div>
+                  <div className="text-gray-800">
+                    Status: <strong className="text-emerald-700">✓ {order.status || 'Confirmed'}</strong>
+                  </div>
+                  <div className="text-gray-600">
+                    Ref: <span className="font-mono font-semibold">{order.trackingNumber || 'GMC-EXP-892174'}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="text-right">
-                <div className="font-serif italic font-bold text-gray-800 text-[11px]">
-                  Gagan Mobile Care
+              {/* Bill Itemized Table */}
+              <div className="my-2.5 overflow-x-auto">
+                <table className="w-full text-left text-[10px] border-collapse min-w-[280px]">
+                  <thead>
+                    <tr className="border-b-2 border-gray-900 bg-gray-100 text-[9px] font-bold text-gray-800 uppercase">
+                      <th className="py-1.5 px-1.5 w-6">#</th>
+                      <th className="py-1.5 px-1.5">Item Description & Brand</th>
+                      <th className="py-1.5 px-1.5 text-center w-10">Qty</th>
+                      <th className="py-1.5 px-1.5 text-right w-16 sm:w-20">Unit Price</th>
+                      <th className="py-1.5 px-1.5 text-right w-16 sm:w-20">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {items.map((item, idx) => {
+                      const p = Number(item.price) || 0;
+                      const q = Number(item.quantity) || 1;
+                      return (
+                        <tr key={idx}>
+                          <td className="py-1.5 px-1.5 font-mono text-gray-500">{idx + 1}</td>
+                          <td className="py-1.5 px-1.5">
+                            <div className="font-bold text-gray-900 text-[11px] leading-tight">{item.name}</div>
+                            <div className="text-[9px] text-gray-500 leading-none mt-0.5">
+                              Brand: <span className="uppercase font-semibold">{item.brand || 'GMC'}</span> • HSN: {item.category === 'accessories' ? '85183000' : '85171300'}
+                            </div>
+                          </td>
+                          <td className="py-1.5 px-1.5 text-center font-mono font-semibold text-gray-900">
+                            {q}
+                          </td>
+                          <td className="py-1.5 px-1.5 text-right font-mono text-gray-700">
+                            ₹{p.toLocaleString('en-IN')}
+                          </td>
+                          <td className="py-1.5 px-1.5 text-right font-mono font-bold text-gray-900">
+                            ₹{(p * q).toLocaleString('en-IN')}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Calculation & Totals Summary */}
+              <div className="border-t-2 border-gray-900 pt-2 text-[10px]">
+                <div className="flex flex-col sm:flex-row justify-between gap-3">
+                  {/* Left Side: Amount in Words & Guarantees */}
+                  <div className="flex-1 space-y-1.5">
+                    <div className="rounded bg-gray-50 p-2 border border-gray-200">
+                      <span className="block font-bold text-gray-500 text-[8px] uppercase">
+                        Amount in Words:
+                      </span>
+                      <span className="font-bold text-gray-900 italic text-[10px] leading-tight block">
+                        {numberToWordsINR(finalTotal)}
+                      </span>
+                    </div>
+
+                    <div className="space-y-0.5 text-[9px] text-gray-600">
+                      <div className="flex items-center gap-1 font-semibold text-gray-800">
+                        <ShieldCheck size={11} className="text-emerald-600 shrink-0" />
+                        Warranty & Protection Included:
+                      </div>
+                      <div>• 1-Year Official Brand Warranty + GMC Quality Guarantee</div>
+                      <div>• 7-Day Replacement against technical defect</div>
+                      <div>• GST Invoice eligible for input tax credit (ITC)</div>
+                    </div>
+                  </div>
+
+                  {/* Right Side: Totals breakdown */}
+                  <div className="w-full sm:w-52 space-y-1 text-[10px] shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-gray-200">
+                    <div className="flex justify-between text-gray-600">
+                      <span>Gross Subtotal:</span>
+                      <span className="font-mono">₹{rawSubtotal.toLocaleString('en-IN')}</span>
+                    </div>
+
+                    {discount > 0 && (
+                      <div className="flex justify-between font-semibold text-emerald-700">
+                        <span>Discount / Coupon:</span>
+                        <span className="font-mono">- ₹{discount.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between text-gray-500 text-[9px] pt-0.5 border-t border-gray-200">
+                      <span>Taxable Value (Excl. Tax):</span>
+                      <span className="font-mono">₹{taxableValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500 text-[9px]">
+                      <span>CGST (9%):</span>
+                      <span className="font-mono">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500 text-[9px]">
+                      <span>SGST (9%):</span>
+                      <span className="font-mono">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs font-black text-gray-900 border-t-2 border-gray-900 pt-1">
+                      <span className="uppercase">Net Amount Paid:</span>
+                      <span className="font-mono text-sm font-extrabold text-blue-900">
+                        ₹{finalTotal.toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="border-t border-gray-400 pt-0.5 font-bold text-gray-800 text-[9px]">
-                  Authorized Signatory
+              </div>
+
+              {/* Signature & Seal Footer */}
+              <div className="mt-4 border-t border-gray-200 pt-2 flex items-end justify-between text-[9px] text-gray-500">
+                <div className="flex items-center gap-2">
+                  <div className="h-9 w-9 rounded border border-gray-300 p-0.5 flex items-center justify-center bg-gray-50 shrink-0">
+                    <QrCode size={28} className="text-gray-800" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-gray-800 text-[9px]">Scan to Verify Authenticity</div>
+                    <div className="text-[8px] text-gray-500">Official GMC Digitally Signed Invoice</div>
+                    <div className="text-[8px] text-emerald-700 font-semibold">✓ Authorized Retail Store Copy</div>
+                  </div>
                 </div>
-                <div className="text-[8px] text-gray-400">Maur Mandi, Punjab Jurisdiction</div>
+
+                <div className="text-right">
+                  <div className="font-serif italic font-bold text-gray-800 text-[11px]">
+                    Gagan Mobile Care
+                  </div>
+                  <div className="border-t border-gray-400 pt-0.5 font-bold text-gray-800 text-[9px]">
+                    Authorized Signatory
+                  </div>
+                  <div className="text-[8px] text-gray-400">Maur Mandi, Punjab Jurisdiction</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Modal Bottom Footer Actions */}
-        <div className="flex items-center justify-between border-t border-white/10 bg-[#121c2e] px-4 sm:px-6 py-2.5 text-xs text-gray-400 print:hidden">
-          <span>Formatted for single-page A4 printing & PDF saving.</span>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between border-t border-white/10 bg-[#121c2e] px-3 sm:px-6 py-2.5 text-xs text-gray-400 print:hidden gap-2">
+          <span className="hidden sm:inline">Formatted for single-page A4 printing & PDF saving.</span>
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button
               onClick={handlePrint}
-              className="rounded-full bg-cyan-400 hover:bg-cyan-300 text-black px-4 py-1.5 font-bold text-xs shadow-md shadow-cyan-500/20 transition-all"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-full bg-cyan-400 hover:bg-cyan-300 text-black px-4 py-2 font-bold text-xs shadow-md shadow-cyan-500/20 transition-all whitespace-nowrap shrink-0"
             >
-              Print Receipt (1 Page)
+              <Printer size={14} />
+              <span>Print Receipt (1 Page)</span>
             </button>
             <button
               onClick={handleDownload}
-              className="rounded-full bg-white/10 hover:bg-white/20 text-white px-3.5 py-1.5 font-semibold text-xs transition-all border border-white/10"
+              className="flex items-center justify-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 font-semibold text-xs transition-all border border-white/10 whitespace-nowrap shrink-0"
             >
-              Download
+              <Download size={14} />
+              <span>Download</span>
             </button>
             <button
               onClick={onClose}
-              className="rounded-full border border-white/10 px-3.5 py-1.5 font-semibold text-gray-300 hover:bg-white/10 hover:text-white transition-colors"
+              className="rounded-full border border-white/10 px-3.5 py-2 font-semibold text-gray-300 hover:bg-white/10 hover:text-white transition-colors whitespace-nowrap shrink-0"
             >
               Close
             </button>

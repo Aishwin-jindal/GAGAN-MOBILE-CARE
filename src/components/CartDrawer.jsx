@@ -39,9 +39,12 @@ export default function CartDrawer({
 
   const rawSubtotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
   
-  // Calculate discounts
-  const offerDiscount = appliedOffer ? appliedOffer.discount : 0;
-  const totalDiscount = (tradeInDiscount || 0) + offerDiscount;
+  // Calculate discounts and check minimum eligibility
+  const isOfferEligible = appliedOffer ? (rawSubtotal >= (appliedOffer.minCartValue || 0)) : false;
+  const rawOfferDiscount = (appliedOffer && isOfferEligible) ? appliedOffer.discount : 0;
+  
+  // Total discount cannot exceed cart subtotal
+  const totalDiscount = Math.min(rawSubtotal, (tradeInDiscount || 0) + rawOfferDiscount);
   const netTotal = Math.max(0, rawSubtotal - totalDiscount);
 
   const handleApplyCoupon = (codeToApply) => {
@@ -49,13 +52,19 @@ export default function CartDrawer({
     if (!code) return;
 
     const matched = STORE_OFFERS.find((o) => o.code.toUpperCase() === code);
-    if (matched) {
-      if (onApplyOffer) onApplyOffer(matched);
-      setCouponError('');
-      setCouponInput('');
-    } else {
-      setCouponError('Invalid coupon code. Try GMCFESTIVE or FIRSTGMC.');
+    if (!matched) {
+      setCouponError('Invalid coupon code. Try GMCFESTIVE, FIRSTGMC or GMCCOMBO.');
+      return;
     }
+
+    if (matched.minCartValue && rawSubtotal < matched.minCartValue) {
+      setCouponError(`Code ${matched.code} requires minimum cart total of ₹${matched.minCartValue.toLocaleString('en-IN')}. (Current: ₹${rawSubtotal.toLocaleString('en-IN')})`);
+      return;
+    }
+
+    if (onApplyOffer) onApplyOffer(matched);
+    setCouponError('');
+    setCouponInput('');
   };
 
   const handleRemoveCoupon = () => {
