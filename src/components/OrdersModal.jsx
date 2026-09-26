@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Package, CheckCircle2, Clock, Truck, ChevronRight, RotateCcw, FileText, PhoneCall, ExternalLink } from 'lucide-react';
+import { handleImageError } from '../utils/imageFallback';
 
 export default function OrdersModal({ isOpen, onClose, orders, onReorder, onOpenSupport, onViewInvoice }) {
   const [filter, setFilter] = useState('all'); // 'all', 'delivered', 'processing'
@@ -163,6 +164,7 @@ export default function OrdersModal({ isOpen, onClose, orders, onReorder, onOpen
                               src={item.image}
                               alt={item.name}
                               className="h-full w-full object-contain"
+                              onError={(e) => handleImageError(e, item.name, item.category || 'phone')}
                             />
                           </div>
                           <div>

@@ -1,10 +1,12 @@
 import React, { useRef } from 'react';
-import { X, Printer, Download, FileText, CheckCircle2, ShieldCheck, QrCode } from 'lucide-react';
+import { X, Printer, Download, FileText, CheckCircle2, ShieldCheck, QrCode, Smartphone } from 'lucide-react';
 
-// Helper function to convert Indian number to words
-function numberToWordsINR(amount) {
-  const num = Math.floor(amount);
-  if (num === 0) return 'Zero Rupees';
+/**
+ * Converts any numeric amount in INR to formal English words (Lakhs & Crores format)
+ */
+export function numberToWordsINR(amount) {
+  const num = Math.floor(Number(amount) || 0);
+  if (num <= 0) return 'Zero Rupees Only';
 
   const ones = [
     '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
@@ -53,24 +55,346 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
 
   if (!isOpen || !order) return null;
 
-  const rawSubtotal = order.items.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const discount = order.discount || 0;
-  const finalTotal = order.total ?? Math.max(0, rawSubtotal - discount);
+  // Safe items extraction
+  const items = Array.isArray(order.items)
+    ? order.items
+    : (typeof order.items === 'string'
+        ? (() => { try { return JSON.parse(order.items); } catch (e) { return []; } })()
+        : []);
 
-  // Approximate 18% GST calculation
-  const taxableValue = Math.round(finalTotal / 1.18);
-  const totalGst = finalTotal - taxableValue;
-  const cgst = Math.round(totalGst / 2);
-  const sgst = totalGst - cgst;
+  // 1. Precise Billing Calculations
+  const rawSubtotal = items.reduce((acc, item) => {
+    const p = Number(item.price) || 0;
+    const q = Number(item.quantity) || 1;
+    return acc + (p * q);
+  }, 0);
 
-  // 1. Guaranteed Clean 1-Page Print via Isolated Iframe
-  const handlePrint = () => {
-    const invoiceEl = document.getElementById('printable-tax-invoice');
-    if (!invoiceEl) {
-      window.print();
-      return;
+  const orderTotalGiven = order.total !== undefined && order.total !== null ? Number(order.total) : null;
+  const discount = Number(order.discount) || (orderTotalGiven !== null && rawSubtotal > orderTotalGiven ? rawSubtotal - orderTotalGiven : 0);
+  const finalTotal = orderTotalGiven !== null ? orderTotalGiven : Math.max(0, rawSubtotal - discount);
+
+  // Exact 18% GST Breakdown (Inclusive Retail Price Calculation)
+  // Taxable Value + CGST (9%) + SGST (9%) = finalTotal
+  const taxableValue = Math.round((finalTotal / 1.18) * 100) / 100;
+  const totalGst = Math.round((finalTotal - taxableValue) * 100) / 100;
+  const cgst = Math.round((totalGst / 2) * 100) / 100;
+  const sgst = Math.round((totalGst - cgst) * 100) / 100;
+
+  const invoiceNumber = `GMC/INV/${String(order.id || '').replace(/^GMC-?/i, '') || '8492'}`;
+  const invoiceDate = order.date || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  // Generate complete self-contained printable HTML (Zero external CDN or Tailwind dependency)
+  const generateStandaloneHtml = () => {
+    const itemsHtml = items.map((item, idx) => {
+      const p = Number(item.price) || 0;
+      const q = Number(item.quantity) || 1;
+      const lineTotal = p * q;
+      const brand = item.brand ? String(item.brand).toUpperCase() : 'GMC';
+      const hsn = item.category === 'accessories' ? '85183000' : '85171300';
+      return `
+        <tr>
+          <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-family: monospace; color: #64748b; font-size: 11px;">${idx + 1}</td>
+          <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0;">
+            <div style="font-weight: 700; color: #0f172a; font-size: 11.5px; line-height: 1.3;">${item.name || 'Smartphone / Accessory'}</div>
+            <div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">Brand: <strong>${brand}</strong> | HSN: ${hsn} | 100% Genuine Certified</div>
+          </td>
+          <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: center; font-family: monospace; font-weight: 700; color: #0f172a; font-size: 11px;">${q}</td>
+          <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace; color: #334155; font-size: 11px;">₹${p.toLocaleString('en-IN')}</td>
+          <td style="padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; font-family: monospace; font-weight: 700; color: #0f172a; font-size: 11.5px;">₹${lineTotal.toLocaleString('en-IN')}</td>
+        </tr>
+      `;
+    }).join('');
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Tax_Invoice_${invoiceNumber.replace(/\//g, '_')}</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 8mm 10mm;
     }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #ffffff;
+      color: #0f172a;
+      line-height: 1.4;
+      font-size: 11px;
+    }
+    .invoice-wrapper {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 12px;
+      background: #ffffff;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .header-table {
+      width: 100%;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
+    .brand-title {
+      font-size: 18px;
+      font-weight: 900;
+      color: #0f172a;
+      letter-spacing: -0.3px;
+      text-transform: uppercase;
+    }
+    .brand-sub {
+      font-size: 10px;
+      font-weight: 600;
+      color: #334155;
+      margin-top: 2px;
+    }
+    .brand-addr {
+      font-size: 9.5px;
+      color: #475569;
+      margin-top: 1px;
+    }
+    .meta-box {
+      text-align: right;
+      vertical-align: top;
+    }
+    .tax-badge {
+      display: inline-block;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 3px 8px;
+      font-size: 9.5px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .info-grid {
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
+    .info-col {
+      flex: 1;
+      font-size: 10px;
+    }
+    .info-label {
+      font-size: 8.5px;
+      font-weight: 800;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+    .info-val-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+    .items-table th {
+      background: #f1f5f9;
+      color: #0f172a;
+      font-size: 9.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 7px 8px;
+      border-top: 1px solid #cbd5e1;
+      border-bottom: 2px solid #0f172a;
+    }
+    .totals-wrapper {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      border-top: 1.5px solid #0f172a;
+      padding-top: 10px;
+      margin-bottom: 12px;
+    }
+    .words-box {
+      flex: 1;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 10px;
+    }
+    .summary-table {
+      width: 260px;
+      border-collapse: collapse;
+      font-size: 10.5px;
+    }
+    .summary-table td {
+      padding: 2.5px 0;
+    }
+    .final-row td {
+      border-top: 1.5px solid #0f172a;
+      padding-top: 6px;
+      font-size: 13px;
+      font-weight: 900;
+      color: #0f172a;
+    }
+    .footer-section {
+      border-top: 1px solid #e2e8f0;
+      padding-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      font-size: 9px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="invoice-wrapper">
+    <!-- Header -->
+    <table class="header-table">
+      <tr>
+        <td style="vertical-align: top; width: 65%;">
+          <div class="brand-title">GAGAN MOBILE CARE</div>
+          <div class="brand-sub">Official Smartphone Retail, Genuine Accessories & Express Care</div>
+          <div class="brand-addr">Main Market, Maur Mandi, Dist. Bathinda, Punjab - 151509</div>
+          <div class="brand-addr">GSTIN: <strong style="color: #0f172a; font-family: monospace;">03AAAFG8923Q1Z5</strong> | State Code: <strong>03 (Punjab)</strong></div>
+          <div class="brand-addr">Helpline / WhatsApp: <strong>+91 98726-22624</strong> | Support: support@gaganmobilecare.com</div>
+        </td>
+        <td class="meta-box" style="width: 35%;">
+          <div class="tax-badge">ORIGINAL TAX INVOICE</div>
+          <div style="font-size: 10.5px; color: #475569; margin-top: 2px;">
+            Invoice No: <strong style="color: #0f172a; font-family: monospace;">${invoiceNumber}</strong>
+          </div>
+          <div style="font-size: 10.5px; color: #475569;">
+            Date: <strong style="color: #0f172a;">${invoiceDate}</strong>
+          </div>
+          <div style="font-size: 10px; color: #64748b; margin-top: 2px;">
+            Tracking Ref: <span style="font-family: monospace;">${order.trackingNumber || 'GMC-EXP-892174'}</span>
+          </div>
+        </td>
+      </tr>
+    </table>
 
+    <!-- Customer & Payment Info -->
+    <div class="info-grid">
+      <div class="info-col">
+        <div class="info-label">Billed To (Customer):</div>
+        <div class="info-val-title">${order.customerName || 'Valued Customer'}</div>
+        <div style="color: #334155; margin-top: 1px;">Phone: <strong>${order.customerPhone || '+91 98726-22624'}</strong></div>
+        ${order.customerEmail ? `<div style="color: #475569;">Email: ${order.customerEmail}</div>` : ''}
+        <div style="color: #475569; margin-top: 1px;">
+          Delivery: ${order.deliveryAddress || order.shippingAddress || 'Store Pickup, Maur Mandi'}
+        </div>
+      </div>
+
+      <div class="info-col" style="text-align: right;">
+        <div class="info-label">Payment & Order Details:</div>
+        <div style="color: #0f172a; font-weight: 700;">Mode: ${order.paymentMethod || 'Store Counter / COD'}</div>
+        <div style="color: #15803d; font-weight: 700; margin-top: 1px;">Status: ✓ ${order.status || 'Confirmed'}</div>
+        <div style="color: #475569; margin-top: 1px;">Place of Supply: <strong>03-Punjab</strong></div>
+        <div style="color: #475569;">Reverse Charge: <strong>No</strong></div>
+      </div>
+    </div>
+
+    <!-- Items Table -->
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="width: 30px; text-align: left;">#</th>
+          <th style="text-align: left;">Item Description & Brand</th>
+          <th style="width: 45px; text-align: center;">Qty</th>
+          <th style="width: 90px; text-align: right;">Unit Rate</th>
+          <th style="width: 100px; text-align: right;">Net Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemsHtml}
+      </tbody>
+    </table>
+
+    <!-- Calculation Summary & Totals -->
+    <div class="totals-wrapper">
+      <div class="words-box">
+        <div style="font-size: 8.5px; font-weight: 800; color: #64748b; text-transform: uppercase;">Amount in Words:</div>
+        <div style="font-weight: 800; color: #0f172a; font-size: 11px; margin-top: 2px; font-style: italic;">
+          ${numberToWordsINR(finalTotal)}
+        </div>
+
+        <div style="margin-top: 8px; font-size: 9px; color: #475569; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
+          <div style="font-weight: 700; color: #0f172a; margin-bottom: 2px;">🛡️ Warranty & Assurance:</div>
+          <div>• 1-Year Official Manufacturer Brand Warranty on Handsets</div>
+          <div>• 7-Day Replacement Guarantee against technical manufacturing defect</div>
+          <div>• Tax-paid genuine GST invoice eligible for Input Tax Credit (ITC)</div>
+        </div>
+      </div>
+
+      <div>
+        <table class="summary-table">
+          <tr>
+            <td style="color: #475569;">Gross Subtotal:</td>
+            <td style="text-align: right; font-family: monospace; font-weight: 600;">₹${rawSubtotal.toLocaleString('en-IN')}</td>
+          </tr>
+          ${discount > 0 ? `
+          <tr>
+            <td style="color: #15803d; font-weight: 600;">Discount / Coupon:</td>
+            <td style="text-align: right; font-family: monospace; font-weight: 700; color: #15803d;">- ₹${discount.toLocaleString('en-IN')}</td>
+          </tr>
+          ` : ''}
+          <tr>
+            <td style="color: #64748b; font-size: 9.5px; padding-top: 4px; border-top: 1px solid #e2e8f0;">Taxable Value (Excl. GST):</td>
+            <td style="text-align: right; font-family: monospace; color: #64748b; font-size: 9.5px; padding-top: 4px; border-top: 1px solid #e2e8f0;">₹${taxableValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          <tr>
+            <td style="color: #64748b; font-size: 9.5px;">CGST (9.0%):</td>
+            <td style="text-align: right; font-family: monospace; color: #64748b; font-size: 9.5px;">₹${cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          <tr>
+            <td style="color: #64748b; font-size: 9.5px;">SGST (9.0%):</td>
+            <td style="text-align: right; font-family: monospace; color: #64748b; font-size: 9.5px;">₹${sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          <tr class="final-row">
+            <td style="text-transform: uppercase;">Total Payable:</td>
+            <td style="text-align: right; font-family: monospace; color: #0284c7;">₹${finalTotal.toLocaleString('en-IN')}</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Footer & Signature Seal -->
+    <div class="footer-section">
+      <div>
+        <div style="font-weight: 700; color: #0f172a;">Gagan Mobile Care • Maur Mandi</div>
+        <div>Computer Generated Digitally Signed Tax Invoice • No Physical Signature Required</div>
+        <div style="color: #15803d; font-weight: 600;">✓ Official Store Copy Verified</div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-style: italic; font-weight: 800; font-size: 11px; color: #0f172a; margin-bottom: 2px;">
+          For GAGAN MOBILE CARE
+        </div>
+        <div style="border-top: 1px solid #94a3b8; padding-top: 2px; font-weight: 700; color: #334155; font-size: 9px;">
+          Authorized Signatory / Cashier
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+  };
+
+  // 1. Guaranteed 1-Page Clean Print via Self-Contained Iframe
+  const handlePrint = () => {
     const printFrame = document.createElement('iframe');
     printFrame.style.position = 'fixed';
     printFrame.style.right = '0';
@@ -82,89 +406,28 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
 
     const doc = printFrame.contentWindow.document;
     doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>GMC_Invoice_${order.id}</title>
-        <meta charset="utf-8" />
-        <script src="https://cdn.tailwindcss.com"></script>
-        <style>
-          @page {
-            size: A4 portrait;
-            margin: 8mm 10mm;
-          }
-          * {
-            box-sizing: border-box;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #ffffff !important;
-            color: #111827 !important;
-            margin: 0;
-            padding: 0;
-          }
-          .invoice-container {
-            width: 100%;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 12px;
-            page-break-inside: avoid;
-            page-break-after: avoid;
-            page-break-before: avoid;
-            break-inside: avoid;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="invoice-container">
-          ${invoiceEl.innerHTML}
-        </div>
-      </body>
-      </html>
-    `);
+    doc.write(generateStandaloneHtml());
     doc.close();
 
     printFrame.contentWindow.focus();
     setTimeout(() => {
       printFrame.contentWindow.print();
       setTimeout(() => {
-        document.body.removeChild(printFrame);
-      }, 1500);
-    }, 400);
+        if (document.body.contains(printFrame)) {
+          document.body.removeChild(printFrame);
+        }
+      }, 2000);
+    }, 250);
   };
 
-  // 2. Direct HTML / PDF Download
+  // 2. Direct Standalone HTML / PDF Download
   const handleDownload = () => {
-    const invoiceEl = document.getElementById('printable-tax-invoice');
-    if (!invoiceEl) return;
-
-    const fullHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>GMC_Invoice_${order.id}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @page { size: A4 portrait; margin: 8mm 10mm; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; padding: 20px; }
-    .invoice-card { max-width: 800px; margin: 0 auto; background: #ffffff; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-  </style>
-</head>
-<body>
-  <div class="invoice-card">
-    ${invoiceEl.innerHTML}
-  </div>
-</body>
-</html>`;
-
-    const blob = new Blob([fullHtml], { type: 'text/html' });
+    const fullHtml = generateStandaloneHtml();
+    const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `GMC_Invoice_${order.id}.html`;
+    link.download = `GMC_Invoice_${String(order.id || '').replace(/^GMC-?/i, '')}.html`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -272,22 +535,18 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
           </div>
         </div>
 
-        {/* Printable Receipt Paper Container */}
+        {/* Printable Receipt Paper Container (In-App Preview) */}
         <div className="flex-1 overflow-y-auto p-2 sm:p-4 bg-[#050b14]">
           <div
             ref={receiptRef}
             id="printable-tax-invoice"
-            className="mx-auto max-w-xl bg-[#ffffff] text-[#111827] rounded-xl p-4 sm:p-5 shadow-2xl font-sans border border-gray-200"
+            className="mx-auto max-w-xl bg-[#ffffff] text-[#0f172a] rounded-xl p-4 sm:p-5 shadow-2xl font-sans border border-gray-200"
           >
             {/* Store Branding Header (Compact 1-Page Layout) */}
             <div className="flex items-start justify-between border-b-2 border-gray-900 pb-3 gap-2">
               <div className="flex items-start gap-2.5">
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-amber-500 shadow-sm">
-                  <img
-                    src="/gmc_logo.jpg"
-                    alt="GMC Logo"
-                    className="h-full w-full object-cover"
-                  />
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-cyan-400 border border-amber-500/50 shadow-sm font-black text-sm">
+                  GMC
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
@@ -299,7 +558,7 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
                     </span>
                   </div>
                   <p className="text-[10px] font-semibold text-gray-700 mt-0.5 leading-tight">
-                    Official Smartphone Retail, Accessories & Repairs
+                    Official Smartphone Retail, Genuine Accessories & Express Care
                   </p>
                   <p className="text-[9px] text-gray-600 leading-tight">
                     Main Market, Maur Mandi, Dist. Bathinda, Punjab - 151509
@@ -314,19 +573,19 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
               </div>
 
               <div className="text-right shrink-0">
-                <span className="inline-block rounded bg-gray-100 px-2 py-0.5 font-mono text-[10px] font-black uppercase text-gray-800 border border-gray-300">
+                <span className="inline-block rounded bg-gray-900 px-2 py-0.5 font-mono text-[9.5px] font-black uppercase text-white">
                   TAX INVOICE / BILL
                 </span>
                 <div className="mt-1 text-[10px]">
                   <span className="text-gray-500 font-medium">Inv #: </span>
                   <span className="font-mono font-bold text-gray-900">
-                    GMC/INV/{order.id.replace('GMC-', '')}
+                    {invoiceNumber}
                   </span>
                 </div>
                 <div className="text-[10px]">
                   <span className="text-gray-500 font-medium">Date: </span>
                   <span className="font-semibold text-gray-900">
-                    {order.date || 'Today'}
+                    {invoiceDate}
                   </span>
                 </div>
               </div>
@@ -342,10 +601,10 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
                   {order.customerName || 'Valued Customer'}
                 </div>
                 <div className="text-gray-700">
-                  Mob: <span className="font-mono font-semibold">{order.customerPhone || '+91 98765 43210'}</span>
+                  Mob: <span className="font-mono font-semibold">{order.customerPhone || '+91 98726-22624'}</span>
                 </div>
                 <div className="text-gray-600 truncate">
-                  Address: {order.deliveryAddress || order.shippingAddress || 'Store Pickup - Counter #1'}
+                  Address: {order.deliveryAddress || order.shippingAddress || 'Store Pickup - Counter #1, Maur Mandi'}
                 </div>
               </div>
 
@@ -354,13 +613,13 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
                   Payment & Fulfillment:
                 </span>
                 <div className="text-gray-800 truncate">
-                  Mode: <strong className="text-gray-900">{order.paymentMethod || 'Pay on Delivery'}</strong>
+                  Mode: <strong className="text-gray-900">{order.paymentMethod || 'Pay on Store Counter / COD'}</strong>
                 </div>
                 <div className="text-gray-800">
                   Status: <strong className="text-emerald-700">✓ {order.status || 'Confirmed'}</strong>
                 </div>
                 <div className="text-gray-600 truncate">
-                  Ref: <span className="font-mono font-semibold">{order.trackingNumber || 'GMC-EXP-293926'}</span>
+                  Ref: <span className="font-mono font-semibold">{order.trackingNumber || 'GMC-EXP-892174'}</span>
                 </div>
               </div>
             </div>
@@ -378,26 +637,30 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {order.items.map((item, idx) => (
-                    <tr key={idx}>
-                      <td className="py-1.5 px-1.5 font-mono text-gray-500">{idx + 1}</td>
-                      <td className="py-1.5 px-1.5">
-                        <div className="font-bold text-gray-900 text-[11px] leading-tight">{item.name}</div>
-                        <div className="text-[9px] text-gray-500 leading-none mt-0.5">
-                          Brand: <span className="uppercase font-semibold">{item.brand || 'GMC'}</span> • HSN: 85171300
-                        </div>
-                      </td>
-                      <td className="py-1.5 px-1.5 text-center font-mono font-semibold text-gray-900">
-                        {item.quantity}
-                      </td>
-                      <td className="py-1.5 px-1.5 text-right font-mono text-gray-700">
-                        ₹{item.price.toLocaleString('en-IN')}
-                      </td>
-                      <td className="py-1.5 px-1.5 text-right font-mono font-bold text-gray-900">
-                        ₹{(item.price * item.quantity).toLocaleString('en-IN')}
-                      </td>
-                    </tr>
-                  ))}
+                  {items.map((item, idx) => {
+                    const p = Number(item.price) || 0;
+                    const q = Number(item.quantity) || 1;
+                    return (
+                      <tr key={idx}>
+                        <td className="py-1.5 px-1.5 font-mono text-gray-500">{idx + 1}</td>
+                        <td className="py-1.5 px-1.5">
+                          <div className="font-bold text-gray-900 text-[11px] leading-tight">{item.name}</div>
+                          <div className="text-[9px] text-gray-500 leading-none mt-0.5">
+                            Brand: <span className="uppercase font-semibold">{item.brand || 'GMC'}</span> • HSN: {item.category === 'accessories' ? '85183000' : '85171300'}
+                          </div>
+                        </td>
+                        <td className="py-1.5 px-1.5 text-center font-mono font-semibold text-gray-900">
+                          {q}
+                        </td>
+                        <td className="py-1.5 px-1.5 text-right font-mono text-gray-700">
+                          ₹{p.toLocaleString('en-IN')}
+                        </td>
+                        <td className="py-1.5 px-1.5 text-right font-mono font-bold text-gray-900">
+                          ₹{(p * q).toLocaleString('en-IN')}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -421,9 +684,9 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
                       <ShieldCheck size={11} className="text-emerald-600 shrink-0" />
                       Warranty & Protection Included:
                     </div>
-                    <div>• 1 Year Brand Warranty + 1 Year GMC Damage Care</div>
-                    <div>• 7-Day Replacement guarantee against factory defect</div>
-                    <div>• GST Invoice eligible for corporate input tax credit</div>
+                    <div>• 1-Year Official Brand Warranty + GMC Quality Guarantee</div>
+                    <div>• 7-Day Replacement against technical defect</div>
+                    <div>• GST Invoice eligible for input tax credit (ITC)</div>
                   </div>
                 </div>
 
@@ -443,15 +706,15 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
 
                   <div className="flex justify-between text-gray-500 text-[9px] pt-0.5 border-t border-gray-200">
                     <span>Taxable Value (Excl. Tax):</span>
-                    <span className="font-mono">₹{taxableValue.toLocaleString('en-IN')}</span>
+                    <span className="font-mono">₹{taxableValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between text-gray-500 text-[9px]">
                     <span>CGST (9%):</span>
-                    <span className="font-mono">₹{cgst.toLocaleString('en-IN')}</span>
+                    <span className="font-mono">₹{cgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between text-gray-500 text-[9px]">
                     <span>SGST (9%):</span>
-                    <span className="font-mono">₹{sgst.toLocaleString('en-IN')}</span>
+                    <span className="font-mono">₹{sgst.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
 
                   <div className="flex justify-between items-center text-xs font-black text-gray-900 border-t-2 border-gray-900 pt-1">
@@ -484,7 +747,7 @@ export default function InvoiceReceiptModal({ order, isOpen, onClose }) {
                 <div className="border-t border-gray-400 pt-0.5 font-bold text-gray-800 text-[9px]">
                   Authorized Signatory
                 </div>
-                <div className="text-[8px] text-gray-400">Subject to Delhi Jurisdiction</div>
+                <div className="text-[8px] text-gray-400">Maur Mandi, Punjab Jurisdiction</div>
               </div>
             </div>
           </div>

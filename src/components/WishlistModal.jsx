@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Heart, ShoppingBag, Trash2, ArrowRight } from 'lucide-react';
+import { handleImageError } from '../utils/imageFallback';
 
 export default function WishlistModal({
   isOpen,
@@ -75,6 +76,7 @@ export default function WishlistModal({
                       src={product.image}
                       alt={product.name}
                       className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                      onError={(e) => handleImageError(e, product.name, product.category || 'phone')}
                     />
                   </div>
 

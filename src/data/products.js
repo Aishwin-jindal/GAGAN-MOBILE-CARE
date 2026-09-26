@@ -684,7 +684,7 @@ export const PRODUCTS = [
     formattedPrice: 'From ₹4,900',
     subtitle: 'European full-grain leather with magnetic snap.',
     badge: 'Genuine Leather',
-    image: 'https://images.unsplash.com/photo-1601593378449-20d265918790?auto=format&fit=crop&w=800&q=80'
+    image: 'https://images.unsplash.com/photo-1541877944-ac82a091518a?auto=format&fit=crop&w=800&q=80'
   },
   {
     id: 'fast-chargers',
@@ -744,7 +744,7 @@ export const PRODUCTS = [
     formattedPrice: '₹3,999',
     subtitle: 'Simultaneously charge iPhone (15W), Apple Watch & AirPods.',
     badge: 'Fast Wireless',
-    image: 'https://images.unsplash.com/photo-1622445268462-8e14674753ba?auto=format&fit=crop&w=800&q=80'
+    image: 'https://images.unsplash.com/photo-1615526675159-e248c3021d3f?auto=format&fit=crop&w=800&q=80'
   },
   {
     id: 'powerbank-65w',
@@ -756,7 +756,7 @@ export const PRODUCTS = [
     formattedPrice: '₹4,499',
     subtitle: 'Ultra-fast laptop and phone multi-device fast charge on the go.',
     badge: '65W Power',
-    image: 'https://images.unsplash.com/photo-1609592424364-16a7f7267123?auto=format&fit=crop&w=800&q=80'
+    image: 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?auto=format&fit=crop&w=800&q=80'
   },
   {
     id: 'carbon-case',
@@ -768,7 +768,7 @@ export const PRODUCTS = [
     formattedPrice: '₹2,299',
     subtitle: 'Aerospace-grade 1500D Kevlar fiber with MagSafe ring embedded.',
     badge: 'Military Grade',
-    image: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&q=80'
+    image: 'https://images.unsplash.com/photo-1585060544812-6b45742d762f?auto=format&fit=crop&w=800&q=80'
   }
 ];
 

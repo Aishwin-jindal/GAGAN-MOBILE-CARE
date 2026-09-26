@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Trash2, Plus, Minus, CheckCircle, ArrowRight, Tag, Check, FileText, Lock, UserCheck } from 'lucide-react';
 import { STORE_OFFERS } from '../data/offers';
+import { handleImageError } from '../utils/imageFallback';
 
 export default function CartDrawer({
   isOpen,
@@ -187,7 +188,11 @@ export default function CartDrawer({
               {cartItems.map((item) => (
                 <div key={item.id} className="cart-item">
                   <div className="cart-item-img">
-                    <img src={item.image} alt={item.name} />
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      onError={(e) => handleImageError(e, item.name, item.category || 'phone')}
+                    />
                   </div>
                   <div className="cart-item-details">
                     <div className="cart-item-title">{item.name}</div>

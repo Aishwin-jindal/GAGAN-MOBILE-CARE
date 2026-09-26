@@ -1,4 +1,5 @@
 import React from 'react';
+import { handleImageError } from '../utils/imageFallback';
 
 export default function TrendingPhones({
   products,
@@ -127,6 +128,7 @@ export default function TrendingPhones({
                   alt={product.name}
                   className="relative z-10 max-h-full max-w-full object-contain transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
+                  onError={(e) => handleImageError(e, product.name, 'phone')}
                 />
               </div>
 

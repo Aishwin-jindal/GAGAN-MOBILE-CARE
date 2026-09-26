@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { handleImageError } from '../utils/imageFallback';
 
 export default function PremiumAccessories({
   accessories,
@@ -90,12 +91,13 @@ export default function PremiumAccessories({
               </button>
 
               <div>
-                <div className="mx-auto mb-3 mt-4 flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl bg-surface-container-low p-3 transition-transform duration-300 group-hover:scale-105">
+                <div className="mx-auto mb-3 mt-4 flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl bg-slate-900/80 border border-outline-variant/20 p-2 transition-transform duration-300 group-hover:scale-105">
                   <img
                     src={item.image}
                     alt={item.name}
-                    className="max-h-full max-w-full object-contain"
+                    className="max-h-full max-w-full object-contain rounded-lg"
                     loading="lazy"
+                    onError={(e) => handleImageError(e, item.name, 'accessories')}
                   />
                 </div>
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, ShieldCheck, Truck, RefreshCw, ShoppingBag, Heart } from 'lucide-react';
+import { handleImageError } from '../utils/imageFallback';
 
 export default function ProductDetailModal({
   product,
@@ -37,6 +38,7 @@ export default function ProductDetailModal({
                 src={product.image}
                 alt={product.name}
                 className="max-h-full max-w-full object-contain drop-shadow-2xl"
+                onError={(e) => handleImageError(e, product.name, product.category || 'phone')}
               />
             </div>
 
