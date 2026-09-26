@@ -868,20 +868,41 @@ a {
   margin-bottom: 0.4rem;
 }
 
-.form-select, .form-input {
+.form-select, .form-input, input.form-input {
   width: 100%;
-  background: #172033;
-  border: 1px solid var(--border-color);
+  background-color: #0f172a !important;
+  background: #0f172a !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
   border-radius: var(--radius-sm);
   padding: 0.75rem 1rem;
-  color: #fff;
+  color: #ffffff !important;
   font-family: var(--font-body);
   font-size: 0.9rem;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
-.form-select:focus, .form-input:focus {
+input.form-input::placeholder,
+.form-input::placeholder {
+  color: #64748b !important;
+  opacity: 1;
+}
+
+/* iOS Safari and Chrome Autofill Dark Mode Override */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 40px #0f172a inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff !important;
+  border: 1px solid rgba(0, 240, 255, 0.4) !important;
+}
+
+.form-select:focus, .form-input:focus, input.form-input:focus {
   outline: none;
-  border-color: var(--accent-cyan);
+  border-color: var(--accent-cyan) !important;
+  box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.25) !important;
 }
 
 @keyframes fadeIn {

@@ -239,24 +239,27 @@ export default function CartDrawer({
             {/* Checkout Breakdown Footer */}
             <div className="cart-footer">
               {/* Promo Code / Store Offer Input */}
-              <div style={{ marginBottom: '1rem', background: '#0e1726', padding: '0.8rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <div style={{ marginBottom: '1rem', background: '#0e1726', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
                 {appliedOffer ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'between', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                      <span style={{ color: '#10b981', display: 'flex' }}><Check size={16} /></span>
+                      <span style={{ color: isOfferEligible ? '#10b981' : '#f59e0b', display: 'flex' }}><Check size={16} /></span>
                       <div>
-                        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10b981' }}>
-                          Offer Applied: {appliedOffer.code}
+                        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: isOfferEligible ? '#10b981' : '#f59e0b' }}>
+                          {isOfferEligible ? `Offer Applied: ${appliedOffer.code}` : `Offer Pending: ${appliedOffer.code}`}
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          {appliedOffer.title} (-₹{appliedOffer.discount.toLocaleString('en-IN')})
+                        <div style={{ fontSize: '0.72rem', color: isOfferEligible ? 'var(--text-muted)' : '#f59e0b' }}>
+                          {isOfferEligible 
+                            ? `${appliedOffer.title} (-₹${rawOfferDiscount.toLocaleString('en-IN')})`
+                            : `Add ₹${((appliedOffer.minCartValue || 0) - rawSubtotal).toLocaleString('en-IN')} more to unlock ₹${appliedOffer.discount.toLocaleString('en-IN')} off!`
+                          }
                         </div>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={handleRemoveCoupon}
-                      style={{ background: 'transparent', color: 'var(--text-dim)', fontSize: '0.75rem', textDecoration: 'underline' }}
+                      style={{ background: 'transparent', color: 'var(--text-dim)', fontSize: '0.75rem', textDecoration: 'underline', border: 'none', cursor: 'pointer' }}
                     >
                       Remove
                     </button>
@@ -274,14 +277,14 @@ export default function CartDrawer({
                             setCouponInput(e.target.value);
                             setCouponError('');
                           }}
-                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.8rem', textTransform: 'uppercase' }}
+                          style={{ padding: '0.5rem 0.75rem', fontSize: '0.8rem', textTransform: 'uppercase', backgroundColor: '#0b111e', color: '#fff' }}
                         />
                       </div>
                       <button
                         type="button"
                         onClick={() => handleApplyCoupon()}
                         className="btn-secondary"
-                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', fontWeight: 700 }}
+                        style={{ padding: '0.5rem 0.9rem', fontSize: '0.75rem', fontWeight: 700 }}
                       >
                         Apply
                       </button>
@@ -299,14 +302,14 @@ export default function CartDrawer({
                       <button
                         type="button"
                         onClick={() => handleApplyCoupon('GMCFESTIVE')}
-                        style={{ background: 'rgba(0,240,255,0.1)', color: 'var(--accent-cyan)', border: '1px dashed var(--accent-cyan)', borderRadius: 4, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 700 }}
+                        style={{ background: 'rgba(0,240,255,0.1)', color: 'var(--accent-cyan)', border: '1px dashed var(--accent-cyan)', borderRadius: 4, padding: '2px 6px', fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer' }}
                       >
                         GMCFESTIVE (-₹3k)
                       </button>
                       <button
                         type="button"
                         onClick={() => handleApplyCoupon('FIRSTGMC')}
-                        style={{ background: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px dashed #34d399', borderRadius: 4, padding: '1px 6px', fontSize: '0.68rem', fontWeight: 700 }}
+                        style={{ background: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px dashed #34d399', borderRadius: 4, padding: '2px 6px', fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer' }}
                       >
                         FIRSTGMC (-₹1.5k)
                       </button>
@@ -321,10 +324,10 @@ export default function CartDrawer({
                 <span>₹{rawSubtotal.toLocaleString('en-IN')}</span>
               </div>
 
-              {appliedOffer && (
+              {appliedOffer && isOfferEligible && (
                 <div className="cart-summary-row" style={{ color: '#10b981' }}>
                   <span>Store Offer ({appliedOffer.code}):</span>
-                  <span>- ₹{appliedOffer.discount.toLocaleString('en-IN')}</span>
+                  <span>- ₹{rawOfferDiscount.toLocaleString('en-IN')}</span>
                 </div>
               )}
 
@@ -346,11 +349,16 @@ export default function CartDrawer({
               {currentUser ? (
                 <form onSubmit={handleCheckoutSubmit} style={{ marginTop: '0.75rem' }}>
                   <div style={{ background: 'rgba(0,240,255,0.06)', border: '1px solid rgba(0,240,255,0.2)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#93c5fd' }}>
-                    <UserCheck size={15} style={{ color: 'var(--accent-cyan)' }} />
-                    <span>Logged in as <strong>{currentUser.name}</strong> ({currentUser.email})</span>
+                    <UserCheck size={15} style={{ color: 'var(--accent-cyan)', flexShrink: 0 }} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      Logged in as <strong>{currentUser.name}</strong> ({currentUser.email})
+                    </span>
                   </div>
 
                   <div className="form-group" style={{ marginBottom: '0.5rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                      Receiver Name
+                    </label>
                     <input
                       type="text"
                       className="form-input"
@@ -358,9 +366,20 @@ export default function CartDrawer({
                       required
                       value={customerName || currentUser.name || ''}
                       onChange={(e) => setCustomerName(e.target.value)}
+                      style={{
+                        backgroundColor: '#0f172a',
+                        color: '#ffffff',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: '6px',
+                        padding: '0.6rem 0.85rem',
+                        fontSize: '0.85rem'
+                      }}
                     />
                   </div>
                   <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', marginBottom: '0.25rem' }}>
+                      Delivery Mobile Phone
+                    </label>
                     <input
                       type="tel"
                       className="form-input"
@@ -368,6 +387,14 @@ export default function CartDrawer({
                       required
                       value={customerPhone || currentUser.phone || ''}
                       onChange={(e) => setCustomerPhone(e.target.value)}
+                      style={{
+                        backgroundColor: '#0f172a',
+                        color: '#ffffff',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: '6px',
+                        padding: '0.6rem 0.85rem',
+                        fontSize: '0.85rem'
+                      }}
                     />
                   </div>
                   <button type="submit" className="btn-primary" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
