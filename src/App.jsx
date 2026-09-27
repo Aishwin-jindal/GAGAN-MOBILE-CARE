@@ -672,6 +672,7 @@ export default function App() {
           onUpdateOrderStatus={handleUpdateOrderStatus}
           onViewInvoice={(order) => setSelectedInvoiceOrder(order)}
           stories={stories}
+          onAddStory={handleAddStory}
           onDeleteStory={handleDeleteStory}
           tradeInInquiries={tradeInInquiries}
           onUpdateTradeInStatus={handleUpdateTradeInStatus}

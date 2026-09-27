@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import AddCustomerStoryModal from './AddCustomerStoryModal';
 
 export default function AdminDashboard({
   adminUser,
@@ -12,6 +13,7 @@ export default function AdminDashboard({
   onUpdateOrderStatus,
   onViewInvoice,
   stories = [],
+  onAddStory,
   onDeleteStory,
   tradeInInquiries = [],
   onUpdateTradeInStatus,
@@ -30,6 +32,7 @@ export default function AdminDashboard({
   const [productBrandFilter, setProductBrandFilter] = useState('all');
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState('all');
+  const [isAddStoryOpen, setIsAddStoryOpen] = useState(false);
 
   // Form error state
   const [formError, setFormError] = useState('');
@@ -836,13 +839,21 @@ export default function AdminDashboard({
         {/* TAB 5: CUSTOMER DIARIES */}
         {activeTab === 'stories' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between bg-[#0d131f] p-4 rounded-xl border border-white/5">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0d131f] p-4 rounded-xl border border-white/5">
               <div>
                 <h3 className="font-bold text-white text-base">Customer Diaries & Verified Purchases</h3>
                 <p className="text-xs text-gray-400">
                   Customer reviews and photo handover moments displayed on the storefront.
                 </p>
               </div>
+
+              <button
+                onClick={() => setIsAddStoryOpen(true)}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-500 to-rose-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-pink-500/25 hover:from-pink-600 hover:to-rose-700 hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                <span className="material-symbols-outlined text-[18px]">add_a_photo</span>
+                Add Customer Diary
+              </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -864,8 +875,12 @@ export default function AdminDashboard({
                     </div>
 
                     <h4 className="font-bold text-white text-sm">{st.customerName}</h4>
-                    <p className="text-xs text-gray-400">{st.location || 'Maur Mandi'} • {st.date}</p>
-                    <p className="text-xs text-gray-300 mt-2 line-clamp-3 italic">"{st.quote}"</p>
+                    <p className="text-xs text-gray-400">
+                      {st.storeLocation || st.location || 'GMC Store'} • {st.date}
+                    </p>
+                    <p className="text-xs text-gray-300 mt-2 line-clamp-3 italic">
+                      "{st.feedback || st.quote || 'Great buying experience at Gagan Mobile Care!'}"
+                    </p>
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-xs">
@@ -1410,6 +1425,13 @@ export default function AdminDashboard({
           </div>
         </div>
       )}
+
+      {/* Add Customer Story / Diary Modal */}
+      <AddCustomerStoryModal
+        isOpen={isAddStoryOpen}
+        onClose={() => setIsAddStoryOpen(false)}
+        onAddStory={onAddStory}
+      />
     </div>
   );
 }
