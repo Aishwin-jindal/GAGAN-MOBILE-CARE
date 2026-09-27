@@ -1,5 +1,22 @@
 import React, { useState, useMemo } from 'react';
-import { Star, CheckCircle, Plus, Camera, Sparkles, MapPin, Calendar, Smartphone } from 'lucide-react';
+import { Star, CheckCircle, Plus, Camera, Video, Play, Sparkles, MapPin, Calendar, Smartphone, Film } from 'lucide-react';
+
+const isStoryVideo = (story) => {
+  if (!story) return false;
+  if (story.mediaType === 'video' || story.videoUrl) return true;
+  const src = story.image || '';
+  if (typeof src !== 'string') return false;
+  return (
+    src.startsWith('data:video/') ||
+    src.endsWith('.mp4') ||
+    src.endsWith('.webm') ||
+    src.endsWith('.mov') ||
+    src.endsWith('.m4v') ||
+    src.includes('blob:') ||
+    src.toLowerCase().includes('.mp4') ||
+    src.toLowerCase().includes('video')
+  );
+};
 
 export default function CustomerExperience({ stories, onOpenAddModal, onSelectStory }) {
   const [filter, setFilter] = useState('all');
@@ -35,10 +52,10 @@ export default function CustomerExperience({ stories, onOpenAddModal, onSelectSt
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={onOpenAddModal}
-            className="flex items-center gap-2 rounded-full bg-primary-container px-5 py-2.5 text-xs font-bold text-on-primary-container shadow-[0_0_15px_rgba(0,240,255,0.3)] transition-all hover:scale-105 hover:opacity-95"
+            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-rose-600 px-5 py-2.5 text-xs font-bold text-white shadow-[0_0_20px_rgba(236,72,153,0.35)] transition-all hover:scale-105 hover:opacity-95"
           >
-            <Camera size={15} />
-            + Add Customer Moment (Owner)
+            <Film size={15} />
+            + Add Customer Photo / Video
           </button>
         </div>
       </div>
@@ -74,68 +91,101 @@ export default function CustomerExperience({ stories, onOpenAddModal, onSelectSt
 
       {/* Customer Moments Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-        {filteredStories.map((story) => (
-          <div
-            key={story.id}
-            onClick={() => onSelectStory && onSelectStory(story)}
-            className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface-container transition-all duration-300 hover:border-primary/60 hover:shadow-[0_12px_35px_rgba(0,0,0,0.7)] cursor-pointer"
-          >
-            {/* Top Photo Container */}
-            <div className="relative h-80 w-full overflow-hidden bg-black">
-              <img
-                src={story.image}
-                alt={story.phoneBought}
-                className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
-                loading="lazy"
-              />
+        {filteredStories.map((story) => {
+          const isVideo = isStoryVideo(story);
+          return (
+            <div
+              key={story.id}
+              onClick={() => onSelectStory && onSelectStory(story)}
+              className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-outline-variant/30 bg-surface-container transition-all duration-300 hover:border-pink-500/60 hover:shadow-[0_12px_35px_rgba(0,0,0,0.7)] cursor-pointer"
+            >
+              {/* Top Media Container */}
+              <div className="relative h-80 w-full overflow-hidden bg-black">
+                {isVideo ? (
+                  <video
+                    src={story.image || story.videoUrl}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <img
+                    src={story.image}
+                    alt={story.phoneBought}
+                    className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                  />
+                )}
 
-              {/* Gradient vignette */}
-              <div className="absolute inset-0 bg-gradient-to-t from-surface-container via-transparent to-black/40" />
+                {/* Gradient vignette */}
+                <div className="absolute inset-0 bg-gradient-to-t from-surface-container via-transparent to-black/40 pointer-events-none" />
 
-              {/* Top Badges */}
-              <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                <span className="rounded-full bg-black/70 backdrop-blur-md px-2.5 py-1 text-[11px] font-bold text-white border border-white/20 flex items-center gap-1 shadow-lg">
-                  <Smartphone size={12} className="text-primary" />
-                  {story.phoneBought.split('(')[0].trim()}
-                </span>
+                {/* Video Play / Reel Indicator */}
+                {isVideo && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 backdrop-blur-md border border-pink-500/40 text-pink-400 shadow-2xl">
+                      <Play size={20} className="fill-pink-400 ml-0.5" />
+                    </span>
+                  </div>
+                )}
 
-                <span className="rounded-full bg-emerald-500/90 text-white px-2 py-0.5 text-[10px] font-bold flex items-center gap-1 shadow-md">
-                  <CheckCircle size={11} /> Verified
-                </span>
+                {/* Top Badges */}
+                <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+                  <span className="rounded-full bg-black/70 backdrop-blur-md px-2.5 py-1 text-[11px] font-bold text-white border border-white/20 flex items-center gap-1 shadow-lg">
+                    <Smartphone size={12} className="text-primary" />
+                    {story.phoneBought.split('(')[0].trim()}
+                  </span>
+
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold flex items-center gap-1 shadow-md text-white ${
+                    isVideo ? 'bg-gradient-to-r from-pink-500 to-rose-600' : 'bg-emerald-500/90'
+                  }`}>
+                    {isVideo ? (
+                      <>
+                        <Video size={10} /> Video Reel
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle size={11} /> Verified
+                      </>
+                    )}
+                  </span>
+                </div>
+
+                {/* Star Rating Overlay */}
+                <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-md bg-black/60 px-2 py-0.5 text-xs text-amber-400 backdrop-blur-sm">
+                  {'★'.repeat(story.rating || 5)}
+                </div>
               </div>
 
-              {/* Star Rating Overlay */}
-              <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-md bg-black/60 px-2 py-0.5 text-xs text-amber-400 backdrop-blur-sm">
-                {'★'.repeat(story.rating || 5)}
+              {/* Story Details Card */}
+              <div className="flex flex-1 flex-col justify-between p-4">
+                <div>
+                  <h4 className="text-sm font-bold text-white group-hover:text-pink-400 transition-colors line-clamp-1">
+                    {story.customerName}
+                  </h4>
+
+                  <p className="mt-1.5 text-xs text-on-surface-variant leading-relaxed line-clamp-3 italic">
+                    "{story.feedback}"
+                  </p>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-outline-variant/20 flex items-center justify-between text-[11px] text-on-surface-variant">
+                  <span className="flex items-center gap-1">
+                    <Calendar size={12} className="text-primary/70" />
+                    {story.date}
+                  </span>
+
+                  <span className="flex items-center gap-1 truncate max-w-[130px]" title={story.storeLocation}>
+                    <MapPin size={12} className="text-primary/70" />
+                    {(story.storeLocation || 'Maur Mandi').replace('GMC ', '')}
+                  </span>
+                </div>
               </div>
             </div>
-
-            {/* Story Details Card */}
-            <div className="flex flex-1 flex-col justify-between p-4">
-              <div>
-                <h4 className="text-sm font-bold text-white group-hover:text-primary transition-colors line-clamp-1">
-                  {story.customerName}
-                </h4>
-
-                <p className="mt-1.5 text-xs text-on-surface-variant leading-relaxed line-clamp-3 italic">
-                  "{story.feedback}"
-                </p>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-outline-variant/20 flex items-center justify-between text-[11px] text-on-surface-variant">
-                <span className="flex items-center gap-1">
-                  <Calendar size={12} className="text-primary/70" />
-                  {story.date}
-                </span>
-
-                <span className="flex items-center gap-1 truncate max-w-[130px]" title={story.storeLocation}>
-                  <MapPin size={12} className="text-primary/70" />
-                  {story.storeLocation.replace('GMC ', '')}
-                </span>
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

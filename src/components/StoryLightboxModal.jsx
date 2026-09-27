@@ -36,14 +36,24 @@ export default function StoryLightboxModal({ isOpen, story, onClose }) {
           <X size={20} />
         </button>
 
-        {/* Large Image Preview */}
+        {/* Large Media Preview */}
         <div className="relative flex-1 bg-black flex items-center justify-center min-h-[300px] md:min-h-[500px] overflow-hidden">
-          <img
-            src={story.image}
-            alt={story.phoneBought}
-            className="w-full h-full max-h-[70vh] md:max-h-[85vh] object-contain"
-          />
-          <div className="absolute top-4 left-4 flex items-center gap-2">
+          {story.mediaType === 'video' || (typeof story.image === 'string' && (story.image.startsWith('data:video') || story.image.endsWith('.mp4') || story.image.endsWith('.webm') || story.image.endsWith('.mov') || story.image.includes('.mp4'))) ? (
+            <video
+              src={story.image || story.videoUrl}
+              controls
+              autoPlay
+              playsInline
+              className="w-full h-full max-h-[70vh] md:max-h-[85vh] object-contain"
+            />
+          ) : (
+            <img
+              src={story.image}
+              alt={story.phoneBought}
+              className="w-full h-full max-h-[70vh] md:max-h-[85vh] object-contain"
+            />
+          )}
+          <div className="absolute top-4 left-4 flex items-center gap-2 pointer-events-none">
             <span className="rounded-full bg-black/75 backdrop-blur-md px-3 py-1 text-xs font-bold text-white border border-white/20 flex items-center gap-1.5 shadow-lg">
               <Smartphone size={14} className="text-primary" />
               {story.phoneBought}
