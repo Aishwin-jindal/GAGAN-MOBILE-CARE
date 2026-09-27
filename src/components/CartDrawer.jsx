@@ -7,6 +7,7 @@ export default function CartDrawer({
   isOpen,
   onClose,
   cartItems,
+  offers = STORE_OFFERS,
   onUpdateQuantity,
   onRemoveItem,
   tradeInDiscount,
@@ -47,13 +48,15 @@ export default function CartDrawer({
   const totalDiscount = Math.min(rawSubtotal, (tradeInDiscount || 0) + rawOfferDiscount);
   const netTotal = Math.max(0, rawSubtotal - totalDiscount);
 
+  const availableOffers = (offers || STORE_OFFERS).filter((o) => o.status !== 'inactive');
+
   const handleApplyCoupon = (codeToApply) => {
     const code = (codeToApply || couponInput).trim().toUpperCase();
     if (!code) return;
 
-    const matched = STORE_OFFERS.find((o) => o.code.toUpperCase() === code);
+    const matched = availableOffers.find((o) => o.code.toUpperCase() === code);
     if (!matched) {
-      setCouponError('Invalid coupon code. Try GMCFESTIVE, FIRSTGMC or GMCCOMBO.');
+      setCouponError('Invalid or inactive coupon code.');
       return;
     }
 
@@ -350,21 +353,26 @@ export default function CartDrawer({
 
                     {/* Quick Suggestions */}
                     <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>Popular:</span>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyCoupon('GMCFESTIVE')}
-                        style={{ background: 'rgba(0,240,255,0.1)', color: 'var(--accent-cyan)', border: '1px dashed var(--accent-cyan)', borderRadius: 4, padding: '2px 6px', fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer' }}
-                      >
-                        GMCFESTIVE (-₹3k)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyCoupon('FIRSTGMC')}
-                        style={{ background: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px dashed #34d399', borderRadius: 4, padding: '2px 6px', fontSize: '0.68rem', fontWeight: 700, cursor: 'pointer' }}
-                      >
-                        FIRSTGMC (-₹1.5k)
-                      </button>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)' }}>Available:</span>
+                      {availableOffers.slice(0, 4).map((off) => (
+                        <button
+                          key={off.id || off.code}
+                          type="button"
+                          onClick={() => handleApplyCoupon(off.code)}
+                          style={{
+                            background: 'rgba(0,240,255,0.1)',
+                            color: 'var(--accent-cyan)',
+                            border: '1px dashed var(--accent-cyan)',
+                            borderRadius: 4,
+                            padding: '2px 6px',
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {off.code} (-₹{off.discount >= 1000 ? `${(off.discount / 1000).toFixed(off.discount % 1000 === 0 ? 0 : 1)}k` : off.discount})
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}

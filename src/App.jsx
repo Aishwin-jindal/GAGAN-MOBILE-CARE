@@ -25,6 +25,7 @@ import AdminDashboard from './components/AdminDashboard';
 import { PRODUCTS } from './data/products';
 import { INITIAL_ORDERS, INITIAL_WISHLIST } from './data/orders';
 import { INITIAL_CUSTOMER_STORIES } from './data/customerStories';
+import { STORE_OFFERS } from './data/offers';
 import { INITIAL_REGISTERED_USERS, getRegisteredUsers, updateUserProfile } from './data/users';
 import {
   getProductsFromDb,
@@ -456,6 +457,52 @@ export default function App() {
     await deleteRepairInDb(id);
   };
 
+  // Dynamic Store Offers & Coupons State (persisted for Admin editing)
+  const [offers, setOffers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gmc_store_offers');
+      return saved ? JSON.parse(saved) : STORE_OFFERS;
+    } catch (e) {
+      return STORE_OFFERS;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('gmc_store_offers', JSON.stringify(offers));
+    } catch (e) {}
+  }, [offers]);
+
+  const handleAddOffer = (newOffer) => {
+    setOffers((prev) => [newOffer, ...prev]);
+    showToast(`🎉 Coupon ${newOffer.code} created successfully!`);
+  };
+
+  const handleUpdateOffer = (updatedOffer) => {
+    setOffers((prev) =>
+      prev.map((o) => (o.id === updatedOffer.id ? { ...o, ...updatedOffer } : o))
+    );
+    showToast(`Coupon ${updatedOffer.code} updated! ✨`);
+  };
+
+  const handleDeleteOffer = (offerId) => {
+    setOffers((prev) => prev.filter((o) => o.id !== offerId));
+    showToast('Coupon removed.');
+  };
+
+  const handleToggleOffer = (offerId) => {
+    setOffers((prev) =>
+      prev.map((o) => {
+        if (o.id === offerId) {
+          const newStatus = o.status === 'inactive' ? 'active' : 'inactive';
+          showToast(`Coupon ${o.code} marked as ${newStatus.toUpperCase()}`);
+          return { ...o, status: newStatus };
+        }
+        return o;
+      })
+    );
+  };
+
   // Modal open states
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isTradeInOpen, setIsTradeInOpen] = useState(false);
@@ -681,6 +728,11 @@ export default function App() {
           onAddRepair={handleAddRepair}
           onUpdateRepairStatus={handleUpdateRepairStatus}
           onDeleteRepair={handleDeleteRepair}
+          offers={offers}
+          onAddOffer={handleAddOffer}
+          onUpdateOffer={handleUpdateOffer}
+          onDeleteOffer={handleDeleteOffer}
+          onToggleOffer={handleToggleOffer}
           users={users}
           loginSessions={loginSessions}
           onRefreshUsers={refreshUsersAndLogins}
@@ -804,6 +856,7 @@ export default function App() {
 
         {/* Latest Offers, Store Discounts & Promo Coupons */}
         <LatestOffers
+          offers={offers}
           onApplyOffer={(offer) => {
             setAppliedOffer(offer);
             if (offer) {
@@ -889,6 +942,7 @@ export default function App() {
       <CartDrawer
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
+        offers={offers}
         cartItems={cartItems}
         onUpdateQuantity={handleUpdateQuantity}
         onRemoveItem={handleRemoveItem}
