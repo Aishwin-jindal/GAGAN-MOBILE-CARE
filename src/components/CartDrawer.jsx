@@ -147,16 +147,68 @@ export default function CartDrawer({
             <h3 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>
               Order Placed Successfully!
             </h3>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-              Thank you, <strong>{customerName || currentUser?.name || 'Valued Customer'}</strong>! Your order has been added to your account orders list. Order ID: <strong style={{ color: 'var(--accent-cyan)' }}>#{placedOrderId}</strong>.
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+              Thank you, <strong>{customerName || currentUser?.name || 'Valued Customer'}</strong>! Your order has been registered in the GMC database. Order ID: <strong style={{ color: 'var(--accent-cyan)' }}>#{placedOrderId}</strong>.
             </p>
+
+            {/* Admin Notification Status Banner */}
+            <div style={{ background: 'rgba(37, 211, 102, 0.12)', border: '1px solid rgba(37, 211, 102, 0.35)', borderRadius: 'var(--radius-md)', padding: '0.75rem 1rem', marginBottom: '1.25rem', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.82rem', color: '#86efac' }}>
+              <span style={{ fontSize: '1.2rem' }}>🔔</span>
+              <div>
+                <div style={{ fontWeight: 800, color: '#ffffff' }}>Admin Mobile Connected (+91 98726-22624)</div>
+                <div style={{ fontSize: '0.75rem', color: '#86efac' }}>Real-time order alert dispatched to store management.</div>
+              </div>
+            </div>
+
             <div style={{ background: '#131b2b', padding: '1.25rem', borderRadius: 'var(--radius-md)', textAlign: 'left', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
               <div style={{ color: '#fff', fontWeight: 700, marginBottom: '0.5rem' }}>Gagan Mobile Care Store Pickup & Delivery:</div>
               <div>📍 Store Address: Main Market, Gagan Mobile Care Hub, Maur Mandi</div>
-              <div>📞 Helpline / WhatsApp: +91 98726-22624</div>
+              <div>📞 Helpline / Admin: +91 98726-22624</div>
               <div>⏱️ Status: Confirmed & Saved to My Orders</div>
             </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {/* WhatsApp Direct Message to Admin */}
+              <a
+                href={(() => {
+                  if (!placedOrderObj) return 'https://wa.me/919872622624';
+                  const itemsList = (placedOrderObj.items || [])
+                    .map((it, idx) => `${idx + 1}. ${it.name} (Qty: ${it.quantity}) - ₹${(it.price * it.quantity).toLocaleString('en-IN')}`)
+                    .join('\n');
+                  const msg = `📦 *NEW ORDER ALERT - GAGAN MOBILE CARE*\n` +
+                    `━━━━━━━━━━━━━━━━━━\n` +
+                    `🆔 *Order ID*: #${placedOrderObj.id}\n` +
+                    `📅 *Date*: ${placedOrderObj.date}\n` +
+                    `👤 *Customer*: ${placedOrderObj.customerName}\n` +
+                    `📞 *Customer Phone*: ${placedOrderObj.customerPhone}\n` +
+                    `📍 *Delivery*: ${placedOrderObj.deliveryAddress || 'Maur Mandi'}\n` +
+                    `💳 *Payment*: ${placedOrderObj.paymentMethod}\n` +
+                    `💰 *Total Amount*: ₹${Number(placedOrderObj.total || 0).toLocaleString('en-IN')}\n\n` +
+                    `🛒 *Ordered Items*:\n${itemsList}\n` +
+                    `━━━━━━━━━━━━━━━━━━\n` +
+                    `⚡ Order logged in GMC System. Ready for packing & dispatch!`;
+                  return `https://wa.me/919872622624?text=${encodeURIComponent(msg)}`;
+                })()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary"
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  border: 'none',
+                  textDecoration: 'none',
+                  boxShadow: '0 4px 16px rgba(37, 211, 102, 0.4)'
+                }}
+              >
+                <span>💬 Send WhatsApp Alert to Admin (+91 98726-22624)</span>
+              </a>
+
               <button
                 className="btn-primary"
                 style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
@@ -168,7 +220,7 @@ export default function CartDrawer({
                 View in My Orders
               </button>
               <button
-                style={{ background: 'transparent', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0.25rem' }}
+                style={{ background: 'transparent', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0.25rem', border: 'none', cursor: 'pointer' }}
                 onClick={handleReset}
               >
                 Done & Return to Store

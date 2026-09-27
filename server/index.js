@@ -927,12 +927,25 @@ app.post('/api/orders', async (req, res) => {
   try {
     if (!isDbConnected()) return res.status(503).json({ error: 'Database offline' });
     const o = req.body;
+    const orderId = o.id || 'GMC-' + Math.floor(10000 + Math.random() * 90000);
+    const adminPhone = process.env.ADMIN_PHONE || '+91 98726-22624';
+
+    console.log(`\n======================================================`);
+    console.log(`🔔 [GAGAN MOBILE CARE] NEW CUSTOMER ORDER RECEIVED!`);
+    console.log(`📱 DISPATCHING NOTIFICATION TO ADMIN MOBILE: ${adminPhone}`);
+    console.log(`🆔 Order ID: #${orderId}`);
+    console.log(`👤 Customer: ${o.customerName || 'Customer'} (${o.customerPhone || 'N/A'})`);
+    console.log(`💰 Total Amount: ₹${Number(o.total || 0).toLocaleString('en-IN')}`);
+    console.log(`📦 Items: ${JSON.stringify(o.items || [])}`);
+    console.log(`📍 Address: ${o.shippingAddress || o.deliveryAddress || 'Maur Mandi, Punjab'}`);
+    console.log(`======================================================\n`);
+
     const result = await pool.query(
       `INSERT INTO orders (id, user_id, customer_name, customer_email, customer_phone, items, total_amount, payment_method, status, shipping_address, date)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
-        o.id || 'GMC-' + Math.floor(10000 + Math.random() * 90000),
+        orderId,
         o.userId || null,
         o.customerName || 'Customer',
         (o.customerEmail || '').toLowerCase(),
@@ -941,11 +954,45 @@ app.post('/api/orders', async (req, res) => {
         o.total || 0,
         o.paymentMethod || 'Cash on Delivery',
         o.status || 'Confirmed',
-        o.shippingAddress || 'Maur Mandi, Punjab',
+        o.shippingAddress || o.deliveryAddress || 'Maur Mandi, Punjab',
         o.date || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
       ]
     );
-    res.status(201).json(result.rows[0]);
+
+    // Optional: Send Email Notification to Admin if SMTP is enabled
+    try {
+      const smtpUser = process.env.SMTP_USER || process.env.GMAIL_USER;
+      const smtpPass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD;
+      if (smtpUser && smtpPass) {
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          port: parseInt(process.env.SMTP_PORT || '465'),
+          secure: true,
+          auth: { user: smtpUser, pass: smtpPass }
+        });
+
+        await transporter.sendMail({
+          from: `"GMC Order Desk" <${smtpUser}>`,
+          to: smtpUser,
+          subject: `📦 [NEW ORDER ALERT] Order #${orderId} from ${o.customerName}`,
+          html: `
+            <h2>New Order Received at Gagan Mobile Care</h2>
+            <p><strong>Order ID:</strong> #${orderId}</p>
+            <p><strong>Customer:</strong> ${o.customerName} (${o.customerPhone})</p>
+            <p><strong>Amount:</strong> ₹${Number(o.total || 0).toLocaleString('en-IN')}</p>
+            <p><strong>Delivery Address:</strong> ${o.shippingAddress || o.deliveryAddress || 'Maur Mandi'}</p>
+          `
+        });
+      }
+    } catch (mailErr) {
+      console.warn('Admin email notification skipped:', mailErr.message);
+    }
+
+    res.status(201).json({
+      ...result.rows[0],
+      adminNotified: true,
+      adminPhone: adminPhone
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
