@@ -55,15 +55,16 @@ export default function CustomerExperience({ stories, onOpenAddModal, onSelectSt
     }
   }, [filter]);
 
-  // Scroll to specific card
+  // Scroll to specific card inside the container without affecting page scroll
   const scrollToCard = (index) => {
     if (!sliderRef.current) return;
-    const cards = sliderRef.current.children;
+    const container = sliderRef.current;
+    const cards = container.children;
     if (cards && cards[index]) {
-      cards[index].scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-        inline: 'start'
+      const card = cards[index];
+      container.scrollTo({
+        left: card.offsetLeft - container.offsetLeft,
+        behavior: 'smooth'
       });
       setActiveIndex(index);
     }
